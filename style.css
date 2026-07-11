@@ -22,7 +22,6 @@ body {
     overflow: hidden;
 }
 
-/* Master Layout Framework */
 .app-layout {
     display: flex;
     width: 100vw;
@@ -30,7 +29,6 @@ body {
     background: var(--bg-chat);
 }
 
-/* Sidebar Styling (Widescreen Only) */
 .sidebar {
     width: 300px;
     background: var(--bg-side);
@@ -59,7 +57,6 @@ body {
 }
 
 .status-dot {
-    width: 100px;
     height: 10px;
     width: 10px;
     background: #10ac84;
@@ -68,12 +65,11 @@ body {
 
 .sidebar-tip { font-size: 12px; color: var(--text-muted); line-height: 1.5; }
 
-/* Chat Space Box */
 .chat-container {
     flex: 1;
     display: flex;
     flex-direction: column;
-    background: var(--bg-chat);
+    transition: background-color 0.3s ease;
 }
 
 .chat-header {
@@ -89,6 +85,21 @@ body {
 
 #mobileUserDisplay { margin: 4px 0 0 0; font-size: 12px; color: var(--text-muted); }
 
+.header-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.secondary-btn {
+    background: #3d465c;
+    color: white;
+    border: none;
+    padding: 8px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
 .danger-btn {
     background: #ff6b6b;
     color: white;
@@ -102,7 +113,6 @@ body {
 
 .danger-btn:hover { background: #ee5253; }
 
-/* Message Display Hub */
 #chatHistory {
     flex: 1;
     padding: 25px;
@@ -122,11 +132,28 @@ body {
 
 .message-wrapper.them { align-self: flex-start; align-items: flex-start; }
 
+.message-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+
 .sender-name {
     font-size: 11px;
     color: var(--text-muted);
-    margin-bottom: 4px;
     text-transform: capitalize;
+}
+
+.delete-single-btn {
+    font-size: 10px;
+    cursor: pointer;
+    opacity: 0.4;
+    transition: opacity 0.2s;
+}
+
+.delete-single-btn:hover {
+    opacity: 1;
 }
 
 .bubble {
@@ -151,6 +178,13 @@ body {
     border-top-left-radius: 2px;
 }
 
+.timestamp {
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-top: 4px;
+    padding: 0 4px;
+}
+
 .chat-img {
     max-width: 100%;
     max-height: 250px;
@@ -162,7 +196,6 @@ body {
 
 .system-msg { text-align: center; color: var(--text-muted); margin-top: 30px; font-style: italic; }
 
-/* Footer / Input System */
 .input-area {
     padding: 20px 25px;
     background: var(--bg-side);
@@ -214,17 +247,15 @@ textarea {
 
 #sendBtn:hover { background: var(--accent-hover); transform: scale(1.05); }
 
-/* Image Preview Bar */
 #imagePreviewContainer {
     position: relative;
     display: inline-block;
     margin-bottom: 10px;
     border-radius: 8px;
-    overflow: visible;
     border: 2px solid var(--accent);
 }
 
-#imagePreview { width: 70px; height: 70px; object-fit: cover; block-size: auto; display: block; border-radius: 6px; }
+#imagePreview { width: 70px; height: 70px; object-fit: cover; display: block; border-radius: 6px; }
 
 #cancelImage {
     position: absolute;
@@ -244,7 +275,6 @@ textarea {
 
 .hidden { display: none !important; }
 
-/* Identity Prompt Window Overlay */
 .modal {
     position: fixed;
     top:0; left:0; width:100vw; height:100vh;
@@ -292,9 +322,6 @@ textarea {
     cursor: pointer;
 }
 
-/* --- Responsive Media Adjustments --- */
-
-/* For Monitor/Laptop screen optimization */
 @media (min-width: 768px) {
     .app-layout {
         max-width: 1100px;
@@ -309,7 +336,6 @@ textarea {
     #mobileUserDisplay { display: none; }
 }
 
-/* For Phone screen optimization */
 @media (max-width: 767px) {
     .sidebar { display: none; }
     .app-layout { width: 100vw; height: 100vh; }
