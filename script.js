@@ -39,7 +39,6 @@ let totalCycleSeconds = 600;
 let godIsActive = true;
 let currentAnswer = null;
 let warningTwoMinSent = false;
-let warningFiveSecSent = false;
 
 const nameModal = document.getElementById("nameModal");
 const usernameInput = document.getElementById("usernameInput");
@@ -224,12 +223,11 @@ setInterval(() => {
     totalCycleSeconds = 600; 
     godIsActive = true; 
     warningTwoMinSent = false;
-    warningFiveSecSent = false;
     currentAnswer = null;
   }
 }, 1000);
 
-// Stream Messages with updated formatting logic
+// Stream Messages (Anyone can delete any text)
 const qMessages = query(messagesCollection, orderBy("time", "asc"));
 onSnapshot(qMessages, (snapshot) => {
   if (!chatHistory) return;
@@ -259,7 +257,6 @@ onSnapshot(qMessages, (snapshot) => {
     const customUserColor = data.senderColor || "var(--accent)";
     const firstInitial = data.sender ? data.sender.charAt(0).toUpperCase() : "?";
 
-    // Clean out formatting math symbols
     let cleanedMessage = data.message || "";
     if (cleanedMessage) {
       cleanedMessage = cleanedMessage
@@ -269,7 +266,7 @@ onSnapshot(qMessages, (snapshot) => {
         .replace(/\\\]/g, "")
         .replace(/\\\(|\\\)/g, "")
         .replace(/\\text\{([^}]+)\}/g, "$1")
-        .replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, "$1/$2"); // Formats fractions simply
+        .replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, "$1/$2"); 
     }
 
     let innerContent = "";
@@ -288,16 +285,26 @@ onSnapshot(qMessages, (snapshot) => {
       innerContent += `<div class="bubble" style="${isMe ? `background:${customUserColor};color:#111;` : ''}">${cleanedMessage}</div>`;
     }
     
+    // MODIFIED: Every message gets a delete button regardless of who sent it
     innerContent += `
         <div class="bubble-sub">
           <span class="timestamp">${timeString}</span>
-          ${isMe ? `<span class="delete-single-btn" data-id="${msgId}" title="Delete">🗑️</span>` : ""}
+          <span class="delete-single-btn" data-id="${msgId}" title="Delete Message">🗑️</span>
         </div>
       </div>
     `;
 
     msgElement.innerHTML = innerContent;
     chatHistory.appendChild(msgElement);
+  });
+
+  document.querySelectorAll(".delete-single-btn").forEach(btn => {
+    btn.addEventListener("click", async (e) => {
+      const idToDelete = e.target.getAttribute("data-id");
+      if (confirm("Delete this message?")) {
+        await deleteDoc(doc(db, "messages", idToDelete));
+      }
+    });
   });
 
   chatHistory.scrollTop = chatHistory.scrollHeight;
@@ -336,35 +343,33 @@ onSnapshot(statusCollection, (snapshot) => {
   });
 });
 
-// Optimized AI function to parse raw stream chunks cleanly
+// Fixed POST API Endpoint with reliable content string recovery
 async function fetchAiReply(userPrompt) {
   try {
     updateAiPresence(true);
     
-    // Using a streamlined URL setup to avoid payload structure rejections
-    const response = await fetch(`https://text.pollinations.ai/${encodeURIComponent(userPrompt)}?json=true`, {
-      method: "GET"
+    const response = await fetch("https://text.pollinations.ai/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        messages: [
+          { role: "system", content: "You are a helpful, conversational, super fast AI assistant inside a developer chat room." },
+          { role: "user", content: userPrompt }
+        ]
+      })
     });
 
-    let replyText = "";
-    if (response.ok) {
-      const data = await response.json();
-      replyText = data.choices?.[0]?.message?.content || data.response || "";
-    } else {
-      // Fallback text check
-      const textFallback = await response.text();
-      replyText = textFallback;
-    }
+    const replyText = await response.text();
     
     await addDoc(messagesCollection, {
       sender: "AI Bot",
       senderColor: "#ff9f43",
-      message: replyText.trim() || "I heard you, but my system stalled out. Try asking again!",
+      message: replyText ? replyText.trim() : "My processing space timed out. Try asking me again!",
       time: Date.now()
     });
   } catch (err) {
-    console.error("AI Error:", err);
-  } finally {
+    console.error("AI Fetch Failure:", err);
+  } finaly {
     updateAiPresence(false);
   }
 }
@@ -460,8 +465,11 @@ if (themeBtn && chatContainer) {
   });
 }
 
+// MODIFIED: Anyone can clear the complete chat logs via button click manually now
 if (clearChatBtn) {
-  clearChatBtn.addEventListener("click", () => {
-    alert("Manual override locked by God execution loop.");
+  clearChatBtn.addEventListener("click", async () => {
+    if (confirm("Are you sure you want to completely clear the entire chat log?")) {
+      await purgeChatRoomLogs();
+    }
   });
 }
