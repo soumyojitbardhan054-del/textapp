@@ -29,6 +29,7 @@ body {
     height: 100vh;
     height: -webkit-fill-available;
     background: var(--bg-chat);
+    overflow: hidden;
 }
 
 .sidebar {
@@ -62,6 +63,7 @@ body {
     position: relative;
     z-index: 1;
     overflow: hidden;
+    height: 100%;
 }
 
 .chat-header {
@@ -106,6 +108,7 @@ body {
     flex: 1;
     padding: 20px;
     overflow-y: auto;
+    overflow-x: hidden;
     display: flex;
     flex-direction: column;
     gap: 10px;
@@ -277,7 +280,7 @@ body {
     border: none; border-radius: 6px; cursor: pointer;
 }
 
-/* --- Laptop Desktop Layout --- */
+/* --- Desktop Layout Container --- */
 @media (min-width: 768px) {
     .app-layout {
         max-width: 1100px;
@@ -290,22 +293,26 @@ body {
     #mobileUserDisplay { display: none; }
 }
 
-/* --- Micro Mobile Layout Fixes --- */
+/* --- Ultra-Compact Mobile Constraints --- */
 @media (max-width: 767px) {
     .sidebar { display: none; }
-    .app-layout { width: 100vw; height: 100vh; height: -webkit-fill-available; }
+    .app-layout { width: 100vw; height: 100vh; height: -webkit-fill-available; overflow: hidden; }
     
     .chat-header { 
         padding: 5px 8px; 
         gap: 2px;
     }
     .chat-header h1 { font-size: 13px; }
-    #mobileUserDisplay { display: none; } /* Hidden to save row space */
+    #mobileUserDisplay { display: none; }
     
     .header-actions { gap: 3px; }
     .secondary-btn, .danger-btn { padding: 4px 6px; font-size: 9px; border-radius: 4px; }
     
-    #chatHistory { padding: 8px 6px; gap: 4px; }
+    #chatHistory { 
+        padding: 8px 6px; 
+        gap: 4px; 
+        max-height: calc(100vh - 85px);
+    }
     .message-wrapper { max-width: 88%; margin-top: 4px; }
     .message-wrapper.consecutive { margin-top: -2px; }
     .sender-name { font-size: 9px; margin-bottom: 1px; }
