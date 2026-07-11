@@ -27,7 +27,7 @@
                 <span id="currentUserDisplay">Connecting...</span>
                 <span class="status-dot"></span>
             </div>
-            <p class="sidebar-tip">Images are automatically compressed to load fast!</p>
+            <p class="sidebar-tip">Drafts auto-save instantly. If you refresh, your text will still be here!</p>
         </div>
     </aside>
 
@@ -37,7 +37,10 @@
                 <h1>💬 Shared Chat Room</h1>
                 <p id="mobileUserDisplay">Active Session</p>
             </div>
-            <button id="clearChatBtn" class="danger-btn">Clear History</button>
+            <div class="header-actions">
+                <button id="themeToggleBtn" class="icon-btn" title="Toggle Light/Dark Mode">🌓</button>
+                <button id="clearChatBtn" class="danger-btn">Clear History</button>
+            </div>
         </header>
 
         <div id="chatHistory"></div>
