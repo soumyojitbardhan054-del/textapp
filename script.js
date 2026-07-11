@@ -27,16 +27,14 @@ const messagesCollection = collection(db, "messages");
 let currentUsername = localStorage.getItem("chat_username") || "";
 let selectedImageBase64 = "";
 
-// Themes array to loop through
 const themes = ["#1e2330", "#2c1a30", "#1a2e26", "#301a1a"];
 let currentThemeIndex = parseInt(localStorage.getItem("chat_theme_index")) || 0;
 document.getElementById("chatContainer").style.backgroundColor = themes[currentThemeIndex];
 
-// Load Auto-Saved Draft text on startup
 const messageArea = document.getElementById("message");
 messageArea.value = localStorage.getItem("chat_draft") || "";
 
-// 1. Check Identity
+// 1. Identity Display Handlers
 const nameModal = document.getElementById("nameModal");
 function updateIdentityDisplays() {
   if (currentUsername) {
@@ -58,7 +56,13 @@ document.getElementById("saveNameBtn").addEventListener("click", () => {
   }
 });
 
-// 2. High-Performance Client-Side Image Compression Function
+// Trigger name change modal manually
+document.getElementById("changeNameBtn").addEventListener("click", () => {
+  document.getElementById("usernameInput").value = currentUsername;
+  nameModal.style.display = "flex";
+});
+
+// 2. Image Compression
 function compressImage(file) {
   return new Promise((resolve) => {
     const reader = new FileReader();
@@ -70,8 +74,8 @@ function compressImage(file) {
         const canvas = document.createElement("canvas");
         let width = img.width;
         let height = img.height;
-
         const MAX_SIZE = 600;
+
         if (width > height && width > MAX_SIZE) {
           height *= MAX_SIZE / width;
           width = MAX_SIZE;
@@ -90,7 +94,6 @@ function compressImage(file) {
   });
 }
 
-// 3. Image Input Tracking
 const imageInput = document.getElementById("imageInput");
 const imagePreviewContainer = document.getElementById("imagePreviewContainer");
 const imagePreview = document.getElementById("imagePreview");
@@ -110,7 +113,7 @@ document.getElementById("cancelImage").addEventListener("click", () => {
   imagePreviewContainer.classList.add("hidden");
 });
 
-// 4. Stream Messages in Real-Time (With Individual Delete & Timestamps)
+// 3. Real-time Stream with Grouping Logic
 const q = query(messagesCollection, orderBy("time", "asc"));
 onSnapshot(q, (snapshot) => {
   const chatHistory = document.getElementById("chatHistory");
@@ -121,25 +124,37 @@ onSnapshot(q, (snapshot) => {
     return;
   }
 
+  let lastSender = "";
+
   snapshot.forEach((snapshotDoc) => {
     const data = snapshotDoc.data();
     const msgId = snapshotDoc.id;
     const msgElement = document.createElement("div");
     const isMe = data.sender.toLowerCase() === currentUsername.toLowerCase();
     
-    msgElement.className = `message-wrapper ${isMe ? "me" : "them"}`;
+    // Check if this message is from the same person as the last message
+    const isConsecutive = data.sender.toLowerCase() === lastSender.toLowerCase();
+    lastSender = data.sender;
 
-    // Format the timestamp nicely (e.g., 05:30 PM)
+    msgElement.className = `message-wrapper ${isMe ? "me" : "them"} ${isConsecutive ? "consecutive" : ""}`;
+
     const timeString = data.time 
       ? new Date(data.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
       : "";
 
-    let innerContent = `
-      <div class="message-meta">
-        <span class="sender-name">${data.sender}</span>
-        ${isMe ? `<span class="delete-single-btn" data-id="${msgId}" title="Delete message">🗑️</span>` : ""}
-      </div>
-    `;
+    let innerContent = "";
+    
+    // Only render the name header if it's NOT consecutive text
+    if (!isConsecutive) {
+      innerContent += `
+        <div class="message-meta">
+          <span class="sender-name">${data.sender}</span>
+        </div>
+      `;
+    }
+    
+    // Core message bubble structure
+    innerContent += `<div class="bubble-layout">`;
     
     if (data.image) {
       innerContent += `<img src="${data.image}" class="chat-img" alt="shared photo">`;
@@ -148,13 +163,20 @@ onSnapshot(q, (snapshot) => {
       innerContent += `<div class="bubble">${data.message}</div>`;
     }
     
-    innerContent += `<span class="timestamp">${timeString}</span>`;
+    // Action tools under or alongside the text
+    innerContent += `
+        <div class="bubble-sub">
+          <span class="timestamp">${timeString}</span>
+          ${isMe ? `<span class="delete-single-btn" data-id="${msgId}" title="Delete">🗑️</span>` : ""}
+        </div>
+      </div>
+    `;
 
     msgElement.innerHTML = innerContent;
     chatHistory.appendChild(msgElement);
   });
 
-  // Attach dynamic event listeners to individual delete trash cans
+  // Event deletion anchors
   document.querySelectorAll(".delete-single-btn").forEach(btn => {
     btn.addEventListener("click", async (e) => {
       const idToDelete = e.target.getAttribute("data-id");
@@ -167,12 +189,11 @@ onSnapshot(q, (snapshot) => {
   chatHistory.scrollTop = chatHistory.scrollHeight;
 });
 
-// 5. Auto-Save Draft Text Tracking
+// 4. Input Interactions
 messageArea.addEventListener("input", (e) => {
   localStorage.setItem("chat_draft", e.target.value);
 });
 
-// 6. Send Dispatcher
 document.getElementById("sendBtn").addEventListener("click", async () => {
   const text = messageArea.value.trim();
   if (!text && !selectedImageBase64) return;
@@ -184,23 +205,19 @@ document.getElementById("sendBtn").addEventListener("click", async () => {
     time: Date.now()
   });
 
-  // Reset text inputs & delete local storage draft
   messageArea.value = "";
   localStorage.removeItem("chat_draft");
-  
   selectedImageBase64 = "";
   imageInput.value = "";
   imagePreviewContainer.classList.add("hidden");
 });
 
-// 7. Cycle Background Themes
 document.getElementById("themeBtn").addEventListener("click", () => {
   currentThemeIndex = (currentThemeIndex + 1) % themes.length;
   localStorage.setItem("chat_theme_index", currentThemeIndex);
   document.getElementById("chatContainer").style.backgroundColor = themes[currentThemeIndex];
 });
 
-// 8. Global Reset Wipes
 document.getElementById("clearChatBtn").addEventListener("click", async () => {
   if (confirm("Are you sure you want to clear the entire chat log?")) {
     const querySnapshot = await getDocs(messagesCollection);
