@@ -56,6 +56,7 @@ const typingIndicator = document.getElementById("typingIndicator");
 if (chatContainer) chatContainer.style.backgroundColor = themes[currentThemeIndex];
 if (messageArea) messageArea.value = localStorage.getItem("chat_draft") || "";
 
+// Color Setup inside Modal Selection
 document.querySelectorAll(".color-dot").forEach(dot => {
   if (dot.getAttribute("data-color") === currentUserColor) {
     document.querySelectorAll(".color-dot").forEach(d => d.classList.remove("selected"));
@@ -80,7 +81,6 @@ async function updatePresence(isOnline, isTyping = false) {
   }, { merge: true });
 }
 
-// Separate function to trigger AI presence indicators
 async function updateAiPresence(isTyping) {
   const aiDocRef = doc(statusCollection, "ai_bot");
   await setDoc(aiDocRef, {
@@ -170,6 +170,7 @@ if (cancelImage) {
   });
 }
 
+// Stream Messages
 const qMessages = query(messagesCollection, orderBy("time", "asc"));
 onSnapshot(qMessages, (snapshot) => {
   if (!chatHistory) return;
@@ -239,11 +240,12 @@ onSnapshot(qMessages, (snapshot) => {
   chatHistory.scrollTop = chatHistory.scrollHeight;
 });
 
+// Stream Presence and Typing Statuses
 onSnapshot(statusCollection, (snapshot) => {
   if (onlineUsersList) onlineUsersList.innerHTML = "";
   let typingUsers = [];
 
-  // Add permanent indicator row for our smart bot
+  // Permanent sidebar indicator row for AI bot status
   if (onlineUsersList) {
     const aiRow = document.createElement("div");
     aiRow.className = "online-user-item";
@@ -283,12 +285,11 @@ onSnapshot(statusCollection, (snapshot) => {
   }
 });
 
-// Advanced Free AI Integration using a clientless open endpoint
+// Fetch AI response
 async function fetchAiReply(userPrompt) {
   try {
     updateAiPresence(true);
     
-    // Using a reliable, free, open-access text completion endpoint
     const response = await fetch("https://text.pollinations.ai/", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -315,6 +316,7 @@ async function fetchAiReply(userPrompt) {
   }
 }
 
+// User Actions Heartbeat and Chat Submit
 if (messageArea) {
   messageArea.addEventListener("input", (e) => {
     localStorage.setItem("chat_draft", e.target.value);
@@ -356,11 +358,19 @@ if (sendBtn) {
     clearTimeout(typingTimeout);
     updatePresence(true, false);
 
-    // Trigger AI if message contains the prompt keyword '@ai'
+    // AI Trigger Parse
     if (text.toLowerCase().startsWith("@ai")) {
-      const cleanedPrompt = text.substring(3).trim();
+      const cleanedPrompt = text.replace(/^@ai\s*/i, "").trim();
+      
       if (cleanedPrompt) {
         fetchAiReply(cleanedPrompt);
+      } else {
+        await addDoc(messagesCollection, {
+          sender: "AI Bot",
+          senderColor: "#ff9f43",
+          message: "👋 I'm listening! Type `@ai` followed by your question (e.g., `@ai tell me a cool fact`).",
+          time: Date.now()
+        });
       }
     }
   });
