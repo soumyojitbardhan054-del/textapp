@@ -17,21 +17,18 @@ const firebaseConfig = {
   projectId: "texting-996fa",
   storageBucket: "texting-996fa.firebasestorage.app",
   messagingSenderId: "109418513805",
-  appId: "1:1:109418513805:web:b9de58d58001d85e6ce9c4"
+  appId: "1:109418513805:web:b9de58d58001d85e6ce9c4"
 };
 
-// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const messagesCollection = collection(db, "messages");
 
-// State parameters
 let currentUsername = localStorage.getItem("chat_username") || "";
 let selectedImageBase64 = "";
 const themes = ["#1e2330", "#2c1a30", "#1a2e26", "#301a1a"];
 let currentThemeIndex = parseInt(localStorage.getItem("chat_theme_index")) || 0;
 
-// Gather DOM nodes cleanly
 const nameModal = document.getElementById("nameModal");
 const usernameInput = document.getElementById("usernameInput");
 const saveNameBtn = document.getElementById("saveNameBtn");
@@ -49,7 +46,6 @@ const cancelImage = document.getElementById("cancelImage");
 const themeBtn = document.getElementById("themeBtn");
 const clearChatBtn = document.getElementById("clearChatBtn");
 
-// Set initial view state safely
 if (chatContainer) chatContainer.style.backgroundColor = themes[currentThemeIndex];
 if (messageArea) messageArea.value = localStorage.getItem("chat_draft") || "";
 
@@ -83,7 +79,6 @@ if (changeNameBtn && usernameInput && nameModal) {
   });
 }
 
-// Image processing pipeline
 function compressImage(file) {
   return new Promise((resolve) => {
     const reader = new FileReader();
@@ -134,7 +129,6 @@ if (cancelImage) {
   });
 }
 
-// Firestore Feed Consumer
 const q = query(messagesCollection, orderBy("time", "asc"));
 onSnapshot(q, (snapshot) => {
   if (!chatHistory) return;
@@ -199,10 +193,16 @@ onSnapshot(q, (snapshot) => {
   chatHistory.scrollTop = chatHistory.scrollHeight;
 });
 
-// Draft capture tracking
 if (messageArea) {
   messageArea.addEventListener("input", (e) => {
     localStorage.setItem("chat_draft", e.target.value);
+  });
+  
+  // Submit message when tapping Enter on phone keyboards
+  messageArea.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      sendBtn.click();
+    }
   });
 }
 
