@@ -4,11 +4,13 @@ import {
   collection,
   addDoc,
   doc,
+  setDoc,
   onSnapshot,
   query,
   orderBy,
   getDocs,
-  deleteDoc
+  deleteDoc,
+  updateDoc
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -23,12 +25,17 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const messagesCollection = collection(db, "messages");
+const statusCollection = collection(db, "status");
 
 let currentUsername = localStorage.getItem("chat_username") || "";
+let currentUserColor = localStorage.getItem("chat_user_color") || "#00d2d3";
 let selectedImageBase64 = "";
+let typingTimeout = null;
+
 const themes = ["#1e2330", "#2c1a30", "#1a2e26", "#301a1a"];
 let currentThemeIndex = parseInt(localStorage.getItem("chat_theme_index")) || 0;
 
+// DOM Selectors
 const nameModal = document.getElementById("nameModal");
 const usernameInput = document.getElementById("usernameInput");
 const saveNameBtn = document.getElementById("saveNameBtn");
@@ -45,27 +52,62 @@ const imagePreview = document.getElementById("imagePreview");
 const cancelImage = document.getElementById("cancelImage");
 const themeBtn = document.getElementById("themeBtn");
 const clearChatBtn = document.getElementById("clearChatBtn");
+const onlineUsersList = document.getElementById("onlineUsersList");
+const typingIndicator = document.getElementById("typingIndicator");
 
 if (chatContainer) chatContainer.style.backgroundColor = themes[currentThemeIndex];
 if (messageArea) messageArea.value = localStorage.getItem("chat_draft") || "";
 
+// Color Picker Setup inside Modal
+document.querySelectorAll(".color-dot").forEach(dot => {
+  if(dot.getAttribute("data-color") === currentUserColor){
+    document.querySelectorAll(".color-dot").forEach(d => d.classList.remove("selected"));
+    dot.classList.add("selected");
+  }
+  dot.addEventListener("click", (e) => {
+    document.querySelectorAll(".color-dot").forEach(d => d.classList.remove("selected"));
+    e.target.classList.add("selected");
+    currentUserColor = e.target.getAttribute("data-color");
+  });
+});
+
 function updateIdentityDisplays() {
   if (!nameModal) return;
   if (currentUsername) {
-    if (currentUserDisplay) currentUserDisplay.textContent = `Logged in as: ${currentUsername}`;
-    if (mobileUserDisplay) mobileUserDisplay.textContent = `User: ${currentUsername}`;
+    if (currentUserDisplay) currentUserDisplay.textContent = `User: ${currentUsername}`;
+    if (mobileUserDisplay) mobileUserDisplay.textContent = `Profile: ${currentUsername}`;
     nameModal.classList.add("hidden-modal");
+    updatePresence(true);
   } else {
     nameModal.classList.remove("hidden-modal");
   }
 }
 updateIdentityDisplays();
 
+// Presence Sync State Function
+async function updatePresence(isOnline, isTyping = false) {
+  if (!currentUsername) return;
+  const userDocRef = doc(statusCollection, currentUsername.toLowerCase());
+  await setDoc(userDocRef, {
+    username: currentUsername,
+    color: currentUserColor,
+    isOnline: isOnline,
+    isTyping: isTyping,
+    lastSeen: Date.now()
+  }, { merge: true });
+}
+
+// Global cleanup tracking presence state changes
+window.addEventListener("beforeunload", () => {
+  updatePresence(false, false);
+});
+
 if (saveNameBtn && usernameInput) {
   saveNameBtn.addEventListener("click", () => {
     const name = usernameInput.value.trim();
     if (name) {
       localStorage.setItem("chat_username", name);
+      localStorage.setItem("chat_user_color", currentUserColor);
       currentUsername = name;
       updateIdentityDisplays();
     }
@@ -91,17 +133,9 @@ function compressImage(file) {
         let width = img.width;
         let height = img.height;
         const MAX_SIZE = 600;
-
-        if (width > height && width > MAX_SIZE) {
-          height *= MAX_SIZE / width;
-          width = MAX_SIZE;
-        } else if (height > MAX_SIZE) {
-          width *= MAX_SIZE / height;
-          height = MAX_SIZE;
-        }
-
-        canvas.width = width;
-        canvas.height = height;
+        if (width > height && width > MAX_SIZE) { height *= MAX_SIZE / width; width = MAX_SIZE; }
+        else if (height > MAX_SIZE) { width *= MAX_SIZE / height; height = MAX_SIZE; }
+        canvas.width = width; canvas.height = height;
         const ctx = canvas.getContext("2d");
         ctx.drawImage(img, 0, 0, width, height);
         resolve(canvas.toDataURL("image/jpeg", 0.6));
@@ -129,8 +163,9 @@ if (cancelImage) {
   });
 }
 
-const q = query(messagesCollection, orderBy("time", "asc"));
-onSnapshot(q, (snapshot) => {
+// Message Stream Listener
+const qMessages = query(messagesCollection, orderBy("time", "asc"));
+onSnapshot(qMessages, (snapshot) => {
   if (!chatHistory) return;
   chatHistory.innerHTML = "";
 
@@ -146,7 +181,6 @@ onSnapshot(q, (snapshot) => {
     const msgId = snapshotDoc.id;
     const msgElement = document.createElement("div");
     const isMe = data.sender.toLowerCase() === currentUsername.toLowerCase();
-    
     const isConsecutive = data.sender.toLowerCase() === lastSender.toLowerCase();
     lastSender = data.sender;
 
@@ -156,9 +190,15 @@ onSnapshot(q, (snapshot) => {
       ? new Date(data.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
       : "";
 
+    // Pull individual saved profile accent line tracking
+    const customUserColor = data.senderColor || "var(--accent)";
+
     let innerContent = "";
     if (!isConsecutive) {
-      innerContent += `<div class="message-meta"><span class="sender-name">${data.sender}</span></div>`;
+      innerContent += `<div class="message-meta">
+        <span class="sender-avatar-dot" style="background:${customUserColor}"></span>
+        <span class="sender-name" style="color:${customUserColor}">${data.sender}</span>
+      </div>`;
     }
     
     innerContent += `<div class="bubble-layout">`;
@@ -166,7 +206,7 @@ onSnapshot(q, (snapshot) => {
       innerContent += `<img src="${data.image}" class="chat-img" alt="shared photo">`;
     }
     if (data.message) {
-      innerContent += `<div class="bubble">${data.message}</div>`;
+      innerContent += `<div class="bubble" style="${isMe ? `background:${customUserColor};color:#111;` : ''}">${data.message}</div>`;
     }
     
     innerContent += `
@@ -193,9 +233,53 @@ onSnapshot(q, (snapshot) => {
   chatHistory.scrollTop = chatHistory.scrollHeight;
 });
 
+// Listener: Online Presence & Typing State Updates
+onSnapshot(statusCollection, (snapshot) => {
+  if (onlineUsersList) onlineUsersList.innerHTML = "";
+  let typingUsers = [];
+
+  snapshot.forEach(docSnap => {
+    const data = docSnap.data();
+    
+    // Check if the presence heartbeat payload is recent (within last 3 mins)
+    const isRecent = (Date.now() - data.lastSeen) < 180000;
+
+    if (data.isOnline && isRecent) {
+      if (onlineUsersList) {
+        const userRow = document.createElement("div");
+        userRow.className = "online-user-item";
+        userRow.innerHTML = `<span class="dot" style="background:${data.color || 'var(--accent)'}"></span> ${data.username}`;
+        onlineUsersList.appendChild(userRow);
+      }
+      
+      if (data.isTyping && data.username.toLowerCase() !== currentUsername.toLowerCase()) {
+        typingUsers.push(data.username);
+      }
+    }
+  });
+
+  // Typing state layout handling
+  if (typingIndicator) {
+    if (typingUsers.length > 0) {
+      typingIndicator.textContent = `${typingUsers.join(", ")} is typing...`;
+      typingIndicator.classList.remove("hidden");
+    } else {
+      typingIndicator.classList.add("hidden");
+    }
+  }
+});
+
+// Capture keystrokes for Typing Indicator State Trigger
 if (messageArea) {
   messageArea.addEventListener("input", (e) => {
     localStorage.setItem("chat_draft", e.target.value);
+    
+    updatePresence(true, true);
+    
+    clearTimeout(typingTimeout);
+    typingTimeout = setTimeout(() => {
+      updatePresence(true, false);
+    }, 2000);
   });
   
   messageArea.addEventListener("keydown", (e) => {
@@ -211,8 +295,10 @@ if (sendBtn) {
     const text = messageArea.value.trim();
     if (!text && !selectedImageBase64) return;
 
+    // Push message payload combined with user profile metrics
     await addDoc(messagesCollection, {
       sender: currentUsername || "Anonymous",
+      senderColor: currentUserColor,
       message: text,
       image: selectedImageBase64,
       time: Date.now()
@@ -223,6 +309,7 @@ if (sendBtn) {
     selectedImageBase64 = "";
     if (imageInput) imageInput.value = "";
     if (imagePreviewContainer) imagePreviewContainer.classList.add("hidden");
+    updatePresence(true, false);
   });
 }
 
