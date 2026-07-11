@@ -1,28 +1,43 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Text App</title>
-<link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Text App</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<div class="container">
-
-<h1>💬 Text App</h1>
-
-<div id="currentMessage">
-No message yet...
+<div id="nameModal" class="modal">
+    <div class="modal-content">
+        <h2>Enter Your Name</h2>
+        <input type="text" id="usernameInput" placeholder="e.g., brine or jia">
+        <button id="saveNameBtn">Start Chatting</button>
+    </div>
 </div>
 
-<textarea id="message" placeholder="Type your message here..."></textarea>
+<div class="container">
+    <div class="chat-header">
+        <h1>💬 Chat Room</h1>
+        <button id="clearChatBtn" class="danger-btn">Clear Chat</button>
+    </div>
 
-<button id="sendBtn">Send</button>
+    <div id="chatHistory"></div>
 
+    <div class="input-area">
+        <div class="text-and-file">
+            <textarea id="message" placeholder="Type your message here..."></textarea>
+            <label for="imageInput" class="file-label">🖼️</label>
+            <input type="file" id="imageInput" accept="image/*" style="display: none;">
+        </div>
+        <div id="imagePreviewContainer" class="hidden">
+            <span id="cancelImage">✕</span>
+            <img id="imagePreview" src="" alt="Preview">
+        </div>
+        <button id="sendBtn">Send</button>
+    </div>
 </div>
 
 <script type="module" src="script.js"></script>
-
 </body>
 </html>
