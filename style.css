@@ -57,6 +57,8 @@ body {
     display: flex;
     flex-direction: column;
     transition: background-color 0.3s ease;
+    position: relative;
+    z-index: 1;
 }
 
 .chat-header {
@@ -106,7 +108,6 @@ body {
     gap: 12px;
 }
 
-/* Grouping Margin Fixes */
 .message-wrapper {
     display: flex;
     flex-direction: column;
@@ -143,7 +144,6 @@ body {
 .me .bubble { background: var(--bubble-me); color: #111; font-weight: 500; border-top-right-radius: 2px; }
 .them .bubble { background: var(--bubble-them); color: var(--text-white); border-top-left-radius: 2px; }
 
-/* Remove corner shapes on consecutive bubbles for true chat style */
 .me.consecutive .bubble { border-top-right-radius: 16px; }
 .them.consecutive .bubble { border-top-left-radius: 16px; }
 
@@ -196,6 +196,7 @@ textarea {
     height: 24px;
     outline: none;
     padding-top: 2px;
+    -webkit-appearance: none;
 }
 
 #sendBtn {
@@ -230,14 +231,24 @@ textarea {
 
 .hidden { display: none !important; }
 
-/* Modals */
+/* Fixed Overlay Modal System */
 .modal {
     position: fixed;
-    top:0; left:0; width:100vw; height:100vh;
+    top: 0; left: 0; width: 100vw; height: 100vh;
     background: rgba(7, 9, 13, 0.95);
     display: flex; justify-content: center; align-items: center;
-    z-index: 9999;
+    z-index: 99999;
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 0.2s ease, visibility 0.2s ease;
 }
+
+.modal.hidden-modal {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none; /* Completely unblocks clicks behind it */
+}
+
 .modal-content {
     background: var(--bg-side);
     padding: 30px;
@@ -277,7 +288,6 @@ textarea {
     .sidebar { display: none; }
     .app-layout { width: 100vw; height: 100vh; }
     
-    /* Clean up mobile header spacing */
     .chat-header { 
         padding: 10px 12px; 
         flex-direction: row;
@@ -291,6 +301,6 @@ textarea {
     #chatHistory { padding: 15px 12px; gap: 8px; }
     .message-wrapper { max-width: 85%; }
     .bubble { font-size: 14px; padding: 8px 12px; }
-    .input-area { padding: 10px 12px; }
+    .input-area { padding: 10px 12px; padding-bottom: calc(10px + env(safe-area-inset-bottom)); }
     .action-bar { padding: 6px 12px; gap: 8px; }
 }
