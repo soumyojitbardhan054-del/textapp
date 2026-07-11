@@ -11,8 +11,18 @@
 <div id="nameModal" class="modal">
     <div class="modal-content">
         <h2>Setup Identity</h2>
-        <p>Please enter your name to join the workspace.</p>
+        <p>Please enter your name and choose a profile color.</p>
         <input type="text" id="usernameInput" placeholder="e.g., brine or jia">
+        
+        <div class="color-picker-label">Pick Profile Accent:</div>
+        <div class="avatar-color-picker">
+            <div class="color-dot selected" data-color="#00d2d3" style="background: #00d2d3;"></div>
+            <div class="color-dot" data-color="#ff9f43" style="background: #ff9f43;"></div>
+            <div class="color-dot" data-color="#ff6b6b" style="background: #ff6b6b;"></div>
+            <div class="color-dot" data-color="#1dd1a1" style="background: #1dd1a1;"></div>
+            <div class="color-dot" data-color="#a55eea" style="background: #a55eea;"></div>
+        </div>
+
         <button id="saveNameBtn">Enter Chatroom</button>
     </div>
 </div>
@@ -27,6 +37,10 @@
                 <span id="currentUserDisplay">Connecting...</span>
                 <span class="status-dot"></span>
             </div>
+            <div class="active-users-panel">
+                <h4>Online Users</h4>
+                <div id="onlineUsersList"></div>
+            </div>
             <p class="sidebar-tip">Drafts are saved automatically if you close the tab!</p>
         </div>
     </aside>
@@ -38,13 +52,15 @@
                 <p id="mobileUserDisplay">Active Session</p>
             </div>
             <div class="header-actions">
-                <button id="changeNameBtn" class="secondary-btn">👤 Name</button>
+                <button id="changeNameBtn" class="secondary-btn">👤 Profile</button>
                 <button id="themeBtn" class="secondary-btn">🎨 Theme</button>
                 <button id="clearChatBtn" class="danger-btn">Clear All</button>
             </div>
         </header>
 
         <div id="chatHistory"></div>
+
+        <div id="typingIndicator" class="typing-banner hidden"></div>
 
         <footer class="input-area">
             <div id="imagePreviewContainer" class="hidden">
