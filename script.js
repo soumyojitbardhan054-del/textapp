@@ -74,8 +74,15 @@ document.querySelectorAll(".color-dot").forEach(dot => {
   });
 });
 
-async function updatePresence(isOnline, isTyping = false) {
+// Fixed: Added oldName cleanup parameter to prevent duplicate identity tracking records
+async function updatePresence(isOnline, isTyping = false, oldName = "") {
   if (!currentUsername) return;
+
+  if (oldName && oldName.toLowerCase() !== currentUsername.toLowerCase()) {
+    const oldDocRef = doc(statusCollection, oldName.toLowerCase().replace(/\s+/g, '_'));
+    await deleteDoc(oldDocRef).catch(err => console.error("Old identity clearance failed:", err));
+  }
+
   const userDocRef = doc(statusCollection, currentUsername.toLowerCase().replace(/\s+/g, '_'));
   await setDoc(userDocRef, {
     username: currentUsername,
@@ -114,15 +121,22 @@ window.addEventListener("beforeunload", () => {
   updatePresence(false, false);
 });
 
-// Mobile Action Handler wrapper helper
+// Fixed: Handled replacement cleanup processing during explicit name changes
 function handleUserSetupSave() {
   if (!usernameInput) return;
-  const name = usernameInput.value.trim();
-  if (name) {
-    localStorage.setItem("chat_username", name);
+  const newName = usernameInput.value.trim();
+  if (newName) {
+    const oldName = currentUsername;
+    
+    localStorage.setItem("chat_username", newName);
     localStorage.setItem("chat_user_color", currentUserColor);
-    currentUsername = name;
+    currentUsername = newName;
+    
     updateIdentityDisplays();
+
+    if (oldName && oldName !== newName) {
+      updatePresence(true, false, oldName);
+    }
   }
 }
 
@@ -240,7 +254,6 @@ setInterval(() => {
   }
 }, 1000);
 
-// Stream Messages (Anyone can delete any text)
 const qMessages = query(messagesCollection, orderBy("time", "asc"));
 onSnapshot(qMessages, (snapshot) => {
   if (!chatHistory) return;
@@ -355,7 +368,6 @@ onSnapshot(statusCollection, (snapshot) => {
   });
 });
 
-// Fixed POST API Endpoint with fully typed out catch block corrections
 async function fetchAiReply(userPrompt) {
   try {
     updateAiPresence(true);
