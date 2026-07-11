@@ -34,8 +34,8 @@ let typingTimeout = null;
 const themes = ["#1e2330", "#2c1a30", "#1a2e26", "#301a1a"];
 let currentThemeIndex = parseInt(localStorage.getItem("chat_theme_index")) || 0;
 
-// GOD & Timer State Controls
-let totalCycleSeconds = 600; 
+// Central Master Timer Sync Variable
+let targetEndTimestamp = 0;
 let godIsActive = true;
 let currentAnswer = null;
 let warningTwoMinSent = false;
@@ -74,7 +74,6 @@ document.querySelectorAll(".color-dot").forEach(dot => {
   });
 });
 
-// Fixed: Added oldName cleanup parameter to prevent duplicate identity tracking records
 async function updatePresence(isOnline, isTyping = false, oldName = "") {
   if (!currentUsername) return;
 
@@ -121,7 +120,6 @@ window.addEventListener("beforeunload", () => {
   updatePresence(false, false);
 });
 
-// Fixed: Handled replacement cleanup processing during explicit name changes
 function handleUserSetupSave() {
   if (!usernameInput) return;
   const newName = usernameInput.value.trim();
@@ -226,31 +224,52 @@ function makeHardQuestion() {
   return `Solve to silence me: (${num1} × ${num2}) - ${num3} = ?`;
 }
 
-setInterval(() => {
-  totalCycleSeconds--;
-  const minutesLeft = Math.floor(totalCycleSeconds / 60);
-  const secondsLeft = totalCycleSeconds % 60;
-  
+// Fixed: Persistent shared time tracking via standalone Firebase data stream listener
+onSnapshot(doc(db, "status", "timer_state"), async (docSnap) => {
+  if (docSnap.exists()) {
+    const timerData = docSnap.data();
+    targetEndTimestamp = timerData.endTime;
+  } else {
+    // Initializer backup loop config if completely empty
+    const freshEnd = Date.now() + 600000; 
+    await setDoc(doc(db, "status", "timer_state"), { endTime: freshEnd });
+  }
+});
+
+setInterval(async () => {
+  if (!targetEndTimestamp) return;
+
+  const now = Date.now();
+  let remainingSeconds = Math.max(0, Math.floor((targetEndTimestamp - now) / 1000));
+
+  const minutesLeft = Math.floor(remainingSeconds / 60);
+  const secondsLeft = remainingSeconds % 60;
+
   if (typingIndicator) {
     typingIndicator.textContent = `Room Purge in: ${minutesLeft}m ${secondsLeft}s | God Mode: ${godIsActive ? "ACTIVE 👁️" : "DISMISSED 🤐"}`;
     typingIndicator.classList.remove("hidden");
   }
 
-  if (godIsActive && totalCycleSeconds === 120 && !warningTwoMinSent) {
+  if (godIsActive && remainingSeconds === 120 && !warningTwoMinSent) {
     warningTwoMinSent = true;
     sendGodSms("⚠️ TWO MINUTES REMAINING. Your chat logs draw closer to terminal erasure. Behave or face the void.");
   }
 
-  if (godIsActive && totalCycleSeconds <= 5 && totalCycleSeconds > 0) {
-    sendGodSms(`🚨 ${totalCycleSeconds} SECONDS REMAINING! Your behavioral logs are absolute trash. Purification imminent.`);
+  if (godIsActive && remainingSeconds <= 5 && remainingSeconds > 0) {
+    sendGodSms(`🚨 ${remainingSeconds} SECONDS REMAINING! Your behavioral logs are absolute trash. Purification imminent.`);
   }
 
-  if (totalCycleSeconds <= 0) {
-    purgeChatRoomLogs();
-    totalCycleSeconds = 600; 
+  if (remainingSeconds <= 0) {
+    // Only execute structural cleanup on first entry pass loop synchronization
+    targetEndTimestamp = 0; 
+    await purgeChatRoomLogs();
+    
+    const nextEnd = Date.now() + 600000;
     godIsActive = true; 
     warningTwoMinSent = false;
     currentAnswer = null;
+    
+    await setDoc(doc(db, "status", "timer_state"), { endTime: nextEnd });
   }
 }, 1000);
 
@@ -335,6 +354,7 @@ onSnapshot(qMessages, (snapshot) => {
   chatHistory.scrollTop = chatHistory.scrollHeight;
 });
 
+// Fixed: The typing string dynamic status tracker updates properly on screen via this stream block
 onSnapshot(statusCollection, (snapshot) => {
   if (onlineUsersList) onlineUsersList.innerHTML = "";
   if (onlineUsersList) {
@@ -348,6 +368,8 @@ onSnapshot(statusCollection, (snapshot) => {
     godRow.innerHTML = `<div class="mini-avatar" style="background:#ff4757">👁️</div> <span>GOD [${godIsActive ? "Online" : "Muted"}]</span>`;
     onlineUsersList.appendChild(godRow);
   }
+
+  let typingUsers = [];
 
   snapshot.forEach(docSnap => {
     const data = docSnap.data();
@@ -364,8 +386,23 @@ onSnapshot(statusCollection, (snapshot) => {
         `;
         onlineUsersList.appendChild(userRow);
       }
+
+      // Check user specific activity states
+      if (data.isTyping && data.username !== currentUsername) {
+        typingUsers.push(data.username);
+      }
     }
   });
+
+  // Re-append dynamic footer details back into workspace views if missing
+  if (typingIndicator && !typingIndicator.textContent.includes("Purge")) {
+     if (typingUsers.length > 0) {
+       typingIndicator.innerHTML = `✍️ ${typingUsers.join(", ")} ${typingUsers.length === 1 ? "is" : "are"} typing...`;
+       typingIndicator.classList.remove("hidden");
+     } else {
+       typingIndicator.classList.add("hidden");
+     }
+  }
 });
 
 async function fetchAiReply(userPrompt) {
