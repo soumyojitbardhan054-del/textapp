@@ -34,7 +34,7 @@ let typingTimeout = null;
 const themes = ["#1e2330", "#2c1a30", "#1a2e26", "#301a1a"];
 let currentThemeIndex = parseInt(localStorage.getItem("chat_theme_index")) || 0;
 
-// Core Timer & State Controls
+// GOD & Timer State Controls
 let totalCycleSeconds = 600; // 10 minutes cyclic countdown
 let godIsActive = true;
 let currentAnswer = null;
@@ -83,6 +83,17 @@ async function updatePresence(isOnline, isTyping = false) {
     username: currentUsername,
     color: currentUserColor,
     isOnline: isOnline,
+    isTyping: isTyping,
+    lastSeen: Date.now()
+  }, { merge: true });
+}
+
+async function updateAiPresence(isTyping) {
+  const aiDocRef = doc(statusCollection, "ai_bot");
+  await setDoc(aiDocRef, {
+    username: "AI Bot",
+    color: "#ff9f43",
+    isOnline: true,
     isTyping: isTyping,
     lastSeen: Date.now()
   }, { merge: true });
@@ -166,7 +177,7 @@ if (cancelImage) {
   });
 }
 
-// Global Chat Clear Function invocation
+// Global Chat Clear Function
 async function purgeChatRoomLogs() {
   const querySnapshot = await getDocs(messagesCollection);
   querySnapshot.forEach(async (docSnapshot) => {
@@ -174,7 +185,7 @@ async function purgeChatRoomLogs() {
   });
 }
 
-// Post system messages from God entity
+// Post system messages from GOD entity
 async function sendGodSms(textPayload) {
   await addDoc(messagesCollection, {
     sender: "GOD",
@@ -184,7 +195,7 @@ async function sendGodSms(textPayload) {
   });
 }
 
-// Generate complex numerical validation strings
+// Generate complex numerical validation math questions
 function makeHardQuestion() {
   const num1 = Math.floor(Math.random() * 80) + 20;
   const num2 = Math.floor(Math.random() * 12) + 4;
@@ -193,34 +204,33 @@ function makeHardQuestion() {
   return `Solve to silence me: (${num1} × ${num2}) - ${num3} = ?`;
 }
 
-// Cyclic loop tracking interval clocks
+// Global Room Countdown Interval (Updates every second)
 setInterval(() => {
   totalCycleSeconds--;
 
-  // Update real-time feedback indicator header layout 
   const minutesLeft = Math.floor(totalCycleSeconds / 60);
   const secondsLeft = totalCycleSeconds % 60;
+  
   if (typingIndicator) {
     typingIndicator.textContent = `Room Purge in: ${minutesLeft}m ${secondsLeft}s | God Mode: ${godIsActive ? "ACTIVE 👁️" : "DISMISSED 🤐"}`;
     typingIndicator.classList.remove("hidden");
   }
 
-  // Warning 1: Sent exactly 2 minutes remaining (120 seconds left)
+  // 1. Warning from GOD at exactly 2 minutes remaining (120 seconds left)
   if (godIsActive && totalCycleSeconds === 120 && !warningTwoMinSent) {
     warningTwoMinSent = true;
-    sendGodSms("⚠️ TWO MINUTES REMAINING. Your time wastes away. Submit your focus or lose your words.");
+    sendGodSms("⚠️ TWO MINUTES REMAINING. Your chat logs draw closer to terminal erasure. Behave or face the void.");
   }
 
-  // Warning 2: Sent 5 seconds before wipeout execution
-  if (godIsActive && totalCycleSeconds === 5 && !warningFiveSecSent) {
-    warningFiveSecSent = true;
-    sendGodSms("🚨 5 SECONDS LEFT! Abysmal behavior detected. Absolute purification protocol initialized. Be silent.");
+  // 2. Continuous warning spam from GOD every single second when less than 5 seconds remain
+  if (godIsActive && totalCycleSeconds <= 5 && totalCycleSeconds > 0) {
+    sendGodSms(`🚨 ${totalCycleSeconds} SECONDS REMAINING! Your behavioral logs are absolute trash. Purification imminent.`);
   }
 
-  // Wipe processing boundary reaching terminal state
+  // 3. Wiping sequence activation
   if (totalCycleSeconds <= 0) {
     purgeChatRoomLogs();
-    totalCycleSeconds = 600;
+    totalCycleSeconds = 600; // Reset to 10 mins
     godIsActive = true; 
     warningTwoMinSent = false;
     warningFiveSecSent = false;
@@ -228,7 +238,7 @@ setInterval(() => {
   }
 }, 1000);
 
-// Stream Messages
+// Stream Messages (Includes LaTeX Cleaner)
 const qMessages = query(messagesCollection, orderBy("time", "asc"));
 onSnapshot(qMessages, (snapshot) => {
   if (!chatHistory) return;
@@ -258,6 +268,18 @@ onSnapshot(qMessages, (snapshot) => {
     const customUserColor = data.senderColor || "var(--accent)";
     const firstInitial = data.sender ? data.sender.charAt(0).toUpperCase() : "?";
 
+    // --- FIX LATEX CODE STAGE ---
+    let cleanedMessage = data.message || "";
+    if (cleanedMessage) {
+      cleanedMessage = cleanedMessage
+        .replace(/\$\$/g, "")
+        .replace(/\$/g, "")
+        .replace(/\\\[/g, "")
+        .replace(/\\\]/g, "")
+        .replace(/\\\(|\\\)/g, "")
+        .replace(/\\text\{([^}]+)\}/g, "$1");
+    }
+
     let innerContent = "";
     if (!isConsecutive) {
       innerContent += `<div class="message-meta">
@@ -270,8 +292,8 @@ onSnapshot(qMessages, (snapshot) => {
     if (data.image) {
       innerContent += `<img src="${data.image}" class="chat-img" alt="shared photo">`;
     }
-    if (data.message) {
-      innerContent += `<div class="bubble" style="${isMe ? `background:${customUserColor};color:#111;` : ''}">${data.message}</div>`;
+    if (cleanedMessage) {
+      innerContent += `<div class="bubble" style="${isMe ? `background:${customUserColor};color:#111;` : ''}">${cleanedMessage}</div>`;
     }
     
     innerContent += `
@@ -286,14 +308,30 @@ onSnapshot(qMessages, (snapshot) => {
     chatHistory.appendChild(msgElement);
   });
 
+  document.querySelectorAll(".delete-single-btn").forEach(btn => {
+    btn.addEventListener("click", async (e) => {
+      const idToDelete = e.target.getAttribute("data-id");
+      if (confirm("Delete this message?")) {
+        await deleteDoc(doc(db, "messages", idToDelete));
+      }
+    });
+  });
+
   chatHistory.scrollTop = chatHistory.scrollHeight;
 });
 
-// Stream Presence Panels
+// Stream Presence and Typing Statuses
 onSnapshot(statusCollection, (snapshot) => {
   if (onlineUsersList) onlineUsersList.innerHTML = "";
+  let typingUsers = [];
 
+  // Permanent sidebar items for status trackers
   if (onlineUsersList) {
+    const aiRow = document.createElement("div");
+    aiRow.className = "online-user-item";
+    aiRow.innerHTML = `<div class="mini-avatar" style="background:#ff9f43">🤖</div> <span>AI Bot</span>`;
+    onlineUsersList.appendChild(aiRow);
+
     const godRow = document.createElement("div");
     godRow.className = "online-user-item";
     godRow.innerHTML = `<div class="mini-avatar" style="background:#ff4757">👁️</div> <span>GOD [${godIsActive ? "Online" : "Muted"}]</span>`;
@@ -304,7 +342,7 @@ onSnapshot(statusCollection, (snapshot) => {
     const data = docSnap.data();
     const isRecent = (Date.now() - data.lastSeen) < 120000;
 
-    if (data.username !== "GOD" && data.isOnline && isRecent) {
+    if (data.username !== "AI Bot" && data.username !== "GOD" && data.isOnline && isRecent) {
       if (onlineUsersList) {
         const firstLetter = data.username ? data.username.charAt(0).toUpperCase() : "?";
         const userRow = document.createElement("div");
@@ -316,9 +354,49 @@ onSnapshot(statusCollection, (snapshot) => {
         onlineUsersList.appendChild(userRow);
       }
     }
+    
+    if (data.isTyping && data.username.toLowerCase() !== currentUsername.toLowerCase()) {
+      typingUsers.push(data.username);
+    }
   });
+
+  if (typingIndicator && typingUsers.length > 0) {
+    // Falls back to global countdown timer text if nobody is actively typing
+  }
 });
 
+// Fetch AI response
+async function fetchAiReply(userPrompt) {
+  try {
+    updateAiPresence(true);
+    
+    const response = await fetch("https://text.pollinations.ai/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        messages: [
+          { role: "system", content: "You are a helpful, super fast, and cool AI assistant directly inside a developer group chat." },
+          { role: "user", content: userPrompt }
+        ]
+      })
+    });
+
+    const replyText = await response.text();
+    
+    await addDoc(messagesCollection, {
+      sender: "AI Bot",
+      senderColor: "#ff9f43",
+      message: replyText || "I heard you, but my brain stalled out. Try asking again!",
+      time: Date.now()
+    });
+  } catch (err) {
+    console.error("AI Error:", err);
+  } finally {
+    updateAiPresence(false);
+  }
+}
+
+// User Actions Heartbeat and Chat Submit
 if (messageArea) {
   messageArea.addEventListener("input", (e) => {
     localStorage.setItem("chat_draft", e.target.value);
@@ -358,7 +436,7 @@ if (sendBtn) {
       }
     }
 
-    // Trigger keyword for turning off the presence mechanism
+    // Trigger keyword to initiate the math verification block
     if (text.toLowerCase() === "/removegod") {
       messageArea.value = "";
       if (!godIsActive) {
@@ -386,6 +464,22 @@ if (sendBtn) {
     
     clearTimeout(typingTimeout);
     updatePresence(true, false);
+
+    // AI Trigger Parse
+    if (text.toLowerCase().startsWith("@ai")) {
+      const cleanedPrompt = text.replace(/^@ai\s*/i, "").trim();
+      
+      if (cleanedPrompt) {
+        fetchAiReply(cleanedPrompt);
+      } else {
+        await addDoc(messagesCollection, {
+          sender: "AI Bot",
+          senderColor: "#ff9f43",
+          message: "👋 I'm listening! Type `@ai` followed by your question (e.g., `@ai tell me a cool fact`).",
+          time: Date.now()
+        });
+      }
+    }
   });
 }
 
