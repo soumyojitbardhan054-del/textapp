@@ -21,14 +21,11 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
-
-// Collection Reference
 const messagesCollection = collection(db, "messages");
 
 let currentUsername = localStorage.getItem("chat_username") || "";
 let selectedImageBase64 = "";
 
-// 1. Name Prompt Logic
 const nameModal = document.getElementById("nameModal");
 if (!currentUsername) {
   nameModal.style.display = "flex";
@@ -45,7 +42,6 @@ document.getElementById("saveNameBtn").addEventListener("click", () => {
   }
 });
 
-// 2. Real-time Listening to Chat History
 const q = query(messagesCollection, orderBy("time", "asc"));
 onSnapshot(q, (snapshot) => {
   const chatHistory = document.getElementById("chatHistory");
@@ -60,7 +56,6 @@ onSnapshot(q, (snapshot) => {
     const data = doc.data();
     const msgElement = document.createElement("div");
     
-    // Determine if the message belongs to "me" or "the other person"
     const isMe = data.sender.toLowerCase() === currentUsername.toLowerCase();
     msgElement.className = `message-wrapper ${isMe ? "me" : "them"}`;
 
@@ -77,11 +72,10 @@ onSnapshot(q, (snapshot) => {
     chatHistory.appendChild(msgElement);
   });
 
-  // Auto-scroll to the bottom on new texts
   chatHistory.scrollTop = chatHistory.scrollHeight;
 });
 
-// 3. Handling Image Selection
+// IMAGE COMPRESSION LOGIC (Fixes the upload error)
 const imageInput = document.getElementById("imageInput");
 const imagePreviewContainer = document.getElementById("imagePreviewContainer");
 const imagePreview = document.getElementById("imagePreview");
@@ -91,9 +85,30 @@ imageInput.addEventListener("change", (e) => {
   if (file) {
     const reader = new FileReader();
     reader.onload = function (event) {
-      selectedImageBase64 = event.target.result;
-      imagePreview.src = selectedImageBase64;
-      imagePreviewContainer.classList.remove("hidden");
+      const img = new Image();
+      img.src = event.target.result;
+      img.onload = function () {
+        // Create canvas to shrink image size
+        const canvas = document.createElement("canvas");
+        const MAX_WIDTH = 600; // Good layout resolution
+        const scaleSize = MAX_WIDTH / img.width;
+        
+        if (img.width > MAX_WIDTH) {
+          canvas.width = MAX_WIDTH;
+          canvas.height = img.height * scaleSize;
+        } else {
+          canvas.width = img.width;
+          canvas.height = img.height;
+        }
+
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        
+        // Convert to highly compressed JPEG data string
+        selectedImageBase64 = canvas.toDataURL("image/jpeg", 0.6); 
+        imagePreview.src = selectedImageBase64;
+        imagePreviewContainer.classList.remove("hidden");
+      };
     };
     reader.readAsDataURL(file);
   }
@@ -105,11 +120,9 @@ document.getElementById("cancelImage").addEventListener("click", () => {
   imagePreviewContainer.classList.add("hidden");
 });
 
-// 4. Send Message Functionality
 document.getElementById("sendBtn").addEventListener("click", async () => {
   const text = document.getElementById("message").value.trim();
 
-  // Don't send if both image and text are blank
   if (!text && !selectedImageBase64) return;
 
   await addDoc(messagesCollection, {
@@ -119,16 +132,14 @@ document.getElementById("sendBtn").addEventListener("click", async () => {
     time: Date.now()
   });
 
-  // Clear Inputs
   document.getElementById("message").value = "";
   selectedImageBase64 = "";
   imageInput.value = "";
   imagePreviewContainer.classList.add("hidden");
 });
 
-// 5. Manual Clear/Reset Feature
 document.getElementById("clearChatBtn").addEventListener("click", async () => {
-  if (confirm("Are you sure you want to delete all messages for everyone?")) {
+  if (confirm("Are you sure you want to completely clear the chat history?")) {
     const querySnapshot = await getDocs(messagesCollection);
     querySnapshot.forEach(async (documentSnapshot) => {
       await deleteDoc(documentSnapshot.ref);
