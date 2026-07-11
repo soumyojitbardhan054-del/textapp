@@ -40,9 +40,9 @@ function updateIdentityDisplays() {
   if (currentUsername) {
     document.getElementById("currentUserDisplay").textContent = `Logged in as: ${currentUsername}`;
     document.getElementById("mobileUserDisplay").textContent = `User: ${currentUsername}`;
-    nameModal.style.display = "none";
+    nameModal.classList.add("hidden-modal");
   } else {
-    nameModal.style.display = "flex";
+    nameModal.classList.remove("hidden-modal");
   }
 }
 updateIdentityDisplays();
@@ -59,7 +59,7 @@ document.getElementById("saveNameBtn").addEventListener("click", () => {
 // Trigger name change modal manually
 document.getElementById("changeNameBtn").addEventListener("click", () => {
   document.getElementById("usernameInput").value = currentUsername;
-  nameModal.style.display = "flex";
+  nameModal.classList.remove("hidden-modal");
 });
 
 // 2. Image Compression
@@ -132,7 +132,6 @@ onSnapshot(q, (snapshot) => {
     const msgElement = document.createElement("div");
     const isMe = data.sender.toLowerCase() === currentUsername.toLowerCase();
     
-    // Check if this message is from the same person as the last message
     const isConsecutive = data.sender.toLowerCase() === lastSender.toLowerCase();
     lastSender = data.sender;
 
@@ -144,7 +143,6 @@ onSnapshot(q, (snapshot) => {
 
     let innerContent = "";
     
-    // Only render the name header if it's NOT consecutive text
     if (!isConsecutive) {
       innerContent += `
         <div class="message-meta">
@@ -153,7 +151,6 @@ onSnapshot(q, (snapshot) => {
       `;
     }
     
-    // Core message bubble structure
     innerContent += `<div class="bubble-layout">`;
     
     if (data.image) {
@@ -163,7 +160,6 @@ onSnapshot(q, (snapshot) => {
       innerContent += `<div class="bubble">${data.message}</div>`;
     }
     
-    // Action tools under or alongside the text
     innerContent += `
         <div class="bubble-sub">
           <span class="timestamp">${timeString}</span>
@@ -176,7 +172,6 @@ onSnapshot(q, (snapshot) => {
     chatHistory.appendChild(msgElement);
   });
 
-  // Event deletion anchors
   document.querySelectorAll(".delete-single-btn").forEach(btn => {
     btn.addEventListener("click", async (e) => {
       const idToDelete = e.target.getAttribute("data-id");
