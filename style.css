@@ -16,19 +16,23 @@ body {
     background: var(--bg-main);
     color: var(--text-white);
     height: 100vh;
+    height: 100dvh;
     display: flex;
     justify-content: center;
     align-items: center;
     overflow: hidden;
 }
 
+/* Master Layout Framework */
 .app-layout {
     display: flex;
     width: 100vw;
     height: 100vh;
+    height: 100dvh;
     background: var(--bg-chat);
 }
 
+/* Sidebar Styling (Widescreen Only) */
 .sidebar {
     width: 300px;
     background: var(--bg-side);
@@ -65,11 +69,13 @@ body {
 
 .sidebar-tip { font-size: 12px; color: var(--text-muted); line-height: 1.5; }
 
+/* Chat Container */
 .chat-container {
     flex: 1;
     display: flex;
     flex-direction: column;
     transition: background-color 0.3s ease;
+    height: 100%;
 }
 
 .chat-header {
@@ -79,6 +85,7 @@ body {
     justify-content: space-between;
     align-items: center;
     border-bottom: 1px solid #2b313f;
+    z-index: 10;
 }
 
 .chat-header h1 { font-size: 20px; margin: 0; }
@@ -113,6 +120,7 @@ body {
 
 .danger-btn:hover { background: #ee5253; }
 
+/* Message Display Hub */
 #chatHistory {
     flex: 1;
     padding: 25px;
@@ -120,6 +128,7 @@ body {
     display: flex;
     flex-direction: column;
     gap: 15px;
+    -webkit-overflow-scrolling: touch; /* Smooth iOS momentum scrolling */
 }
 
 .message-wrapper {
@@ -152,9 +161,7 @@ body {
     transition: opacity 0.2s;
 }
 
-.delete-single-btn:hover {
-    opacity: 1;
-}
+.delete-single-btn:hover { opacity: 1; }
 
 .bubble {
     padding: 12px 16px;
@@ -196,6 +203,7 @@ body {
 
 .system-msg { text-align: center; color: var(--text-muted); margin-top: 30px; font-style: italic; }
 
+/* Input System */
 .input-area {
     padding: 20px 25px;
     background: var(--bg-side);
@@ -205,7 +213,7 @@ body {
 .action-bar {
     display: flex;
     align-items: center;
-    gap: 15px;
+    gap: 12px;
     background: #222938;
     padding: 8px 15px;
     border-radius: 25px;
@@ -243,6 +251,7 @@ textarea {
     align-items: center;
     cursor: pointer;
     transition: 0.2s;
+    flex-shrink: 0;
 }
 
 #sendBtn:hover { background: var(--accent-hover); transform: scale(1.05); }
@@ -275,6 +284,7 @@ textarea {
 
 .hidden { display: none !important; }
 
+/* Identity Overlay Box */
 .modal {
     position: fixed;
     top:0; left:0; width:100vw; height:100vh;
@@ -291,6 +301,7 @@ textarea {
     text-align: center;
     box-shadow: 0 10px 30px rgba(0,0,0,0.5);
     border: 1px solid #2b313f;
+    box-sizing: border-box;
 }
 
 .modal-content h2 { margin: 0 0 10px 0; color: var(--accent); }
@@ -322,6 +333,9 @@ textarea {
     cursor: pointer;
 }
 
+/* --- Responsive Media Adjustments --- */
+
+/* For Widescreen/Laptop Device Tuning */
 @media (min-width: 768px) {
     .app-layout {
         max-width: 1100px;
@@ -336,11 +350,66 @@ textarea {
     #mobileUserDisplay { display: none; }
 }
 
+/* For Phone Device Tuning (Completely Reworked) */
 @media (max-width: 767px) {
     .sidebar { display: none; }
-    .app-layout { width: 100vw; height: 100vh; }
-    .chat-header { padding: 12px 15px; }
-    #chatHistory { padding: 15px; }
-    .message-wrapper { max-width: 80%; }
-    .input-area { padding: 12px 15px; }
+    
+    .app-layout { 
+        width: 100vw; 
+        height: 100vh;
+        height: 100dvh; 
+    }
+    
+    .chat-header { 
+        padding: 10px 15px; 
+    }
+    
+    .chat-header h1 {
+        font-size: 16px;
+    }
+    
+    .secondary-btn, .danger-btn {
+        padding: 6px 10px;
+        font-size: 12px;
+        border-radius: 6px;
+    }
+    
+    #chatHistory { 
+        padding: 15px 12px; 
+        gap: 12px;
+    }
+    
+    .message-wrapper { 
+        max-width: 85%; /* Give bubbles a bit more breathing room on tiny phone screens */
+    }
+    
+    .bubble {
+        padding: 10px 14px;
+        font-size: 14px;
+    }
+    
+    .input-area { 
+        padding: 10px 12px; 
+        padding-bottom: calc(10px + env(safe-area-inset-bottom)); /* Extra spacing protection for modern notch screens */
+    }
+    
+    .action-bar {
+        padding: 6px 12px;
+        gap: 8px;
+    }
+    
+    textarea {
+        font-size: 14px;
+        height: 22px;
+    }
+    
+    #sendBtn {
+        width: 32px;
+        height: 32px;
+    }
+
+    .modal-content {
+        width: 90%;
+        padding: 25px 20px;
+    }
 }
