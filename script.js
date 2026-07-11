@@ -3,6 +3,7 @@ import {
   getFirestore,
   collection,
   addDoc,
+  doc,
   onSnapshot,
   query,
   orderBy,
@@ -25,6 +26,15 @@ const messagesCollection = collection(db, "messages");
 
 let currentUsername = localStorage.getItem("chat_username") || "";
 let selectedImageBase64 = "";
+
+// Themes array to loop through
+const themes = ["#1e2330", "#2c1a30", "#1a2e26", "#301a1a"];
+let currentThemeIndex = parseInt(localStorage.getItem("chat_theme_index")) || 0;
+document.getElementById("chatContainer").style.backgroundColor = themes[currentThemeIndex];
+
+// Load Auto-Saved Draft text on startup
+const messageArea = document.getElementById("message");
+messageArea.value = localStorage.getItem("chat_draft") || "";
 
 // 1. Check Identity
 const nameModal = document.getElementById("nameModal");
@@ -61,7 +71,6 @@ function compressImage(file) {
         let width = img.width;
         let height = img.height;
 
-        // Keep dimensions maxed around 600px to ensure it safely fits in Firestore
         const MAX_SIZE = 600;
         if (width > height && width > MAX_SIZE) {
           height *= MAX_SIZE / width;
@@ -75,8 +84,6 @@ function compressImage(file) {
         canvas.height = height;
         const ctx = canvas.getContext("2d");
         ctx.drawImage(img, 0, 0, width, height);
-
-        // Convert to JPEG with balanced compression quality (0.6)
         resolve(canvas.toDataURL("image/jpeg", 0.6));
       };
     };
@@ -91,7 +98,6 @@ const imagePreview = document.getElementById("imagePreview");
 imageInput.addEventListener("change", async (e) => {
   const file = e.target.files[0];
   if (file) {
-    // Compress immediately to fix upload failures
     selectedImageBase64 = await compressImage(file);
     imagePreview.src = selectedImageBase64;
     imagePreviewContainer.classList.remove("hidden");
@@ -104,7 +110,7 @@ document.getElementById("cancelImage").addEventListener("click", () => {
   imagePreviewContainer.classList.add("hidden");
 });
 
-// 4. Stream Messages in Real-Time
+// 4. Stream Messages in Real-Time (With Individual Delete & Timestamps)
 const q = query(messagesCollection, orderBy("time", "asc"));
 onSnapshot(q, (snapshot) => {
   const chatHistory = document.getElementById("chatHistory");
@@ -115,31 +121,60 @@ onSnapshot(q, (snapshot) => {
     return;
   }
 
-  snapshot.forEach((doc) => {
-    const data = doc.data();
+  snapshot.forEach((snapshotDoc) => {
+    const data = snapshotDoc.data();
+    const msgId = snapshotDoc.id;
     const msgElement = document.createElement("div");
     const isMe = data.sender.toLowerCase() === currentUsername.toLowerCase();
     
     msgElement.className = `message-wrapper ${isMe ? "me" : "them"}`;
 
-    let innerContent = `<span class="sender-name">${data.sender}</span>`;
+    // Format the timestamp nicely (e.g., 05:30 PM)
+    const timeString = data.time 
+      ? new Date(data.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
+      : "";
+
+    let innerContent = `
+      <div class="message-meta">
+        <span class="sender-name">${data.sender}</span>
+        ${isMe ? `<span class="delete-single-btn" data-id="${msgId}" title="Delete message">🗑️</span>` : ""}
+      </div>
+    `;
+    
     if (data.image) {
       innerContent += `<img src="${data.image}" class="chat-img" alt="shared photo">`;
     }
     if (data.message) {
       innerContent += `<div class="bubble">${data.message}</div>`;
     }
+    
+    innerContent += `<span class="timestamp">${timeString}</span>`;
 
     msgElement.innerHTML = innerContent;
     chatHistory.appendChild(msgElement);
   });
 
+  // Attach dynamic event listeners to individual delete trash cans
+  document.querySelectorAll(".delete-single-btn").forEach(btn => {
+    btn.addEventListener("click", async (e) => {
+      const idToDelete = e.target.getAttribute("data-id");
+      if (confirm("Delete this message?")) {
+        await deleteDoc(doc(db, "messages", idToDelete));
+      }
+    });
+  });
+
   chatHistory.scrollTop = chatHistory.scrollHeight;
 });
 
-// 5. Send Dispatcher
+// 5. Auto-Save Draft Text Tracking
+messageArea.addEventListener("input", (e) => {
+  localStorage.setItem("chat_draft", e.target.value);
+});
+
+// 6. Send Dispatcher
 document.getElementById("sendBtn").addEventListener("click", async () => {
-  const text = document.getElementById("message").value.trim();
+  const text = messageArea.value.trim();
   if (!text && !selectedImageBase64) return;
 
   await addDoc(messagesCollection, {
@@ -149,13 +184,23 @@ document.getElementById("sendBtn").addEventListener("click", async () => {
     time: Date.now()
   });
 
-  document.getElementById("message").value = "";
+  // Reset text inputs & delete local storage draft
+  messageArea.value = "";
+  localStorage.removeItem("chat_draft");
+  
   selectedImageBase64 = "";
   imageInput.value = "";
   imagePreviewContainer.classList.add("hidden");
 });
 
-// 6. Global Reset (Wipes Database Items Safely)
+// 7. Cycle Background Themes
+document.getElementById("themeBtn").addEventListener("click", () => {
+  currentThemeIndex = (currentThemeIndex + 1) % themes.length;
+  localStorage.setItem("chat_theme_index", currentThemeIndex);
+  document.getElementById("chatContainer").style.backgroundColor = themes[currentThemeIndex];
+});
+
+// 8. Global Reset Wipes
 document.getElementById("clearChatBtn").addEventListener("click", async () => {
   if (confirm("Are you sure you want to clear the entire chat log?")) {
     const querySnapshot = await getDocs(messagesCollection);
