@@ -17,29 +17,47 @@ const firebaseConfig = {
   projectId: "texting-996fa",
   storageBucket: "texting-996fa.firebasestorage.app",
   messagingSenderId: "109418513805",
-  appId: "1:109418513805:web:b9de58d58001d85e6ce9c4"
+  appId: "1:1:109418513805:web:b9de58d58001d85e6ce9c4"
 };
 
+// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const messagesCollection = collection(db, "messages");
 
+// State parameters
 let currentUsername = localStorage.getItem("chat_username") || "";
 let selectedImageBase64 = "";
-
 const themes = ["#1e2330", "#2c1a30", "#1a2e26", "#301a1a"];
 let currentThemeIndex = parseInt(localStorage.getItem("chat_theme_index")) || 0;
-document.getElementById("chatContainer").style.backgroundColor = themes[currentThemeIndex];
 
-const messageArea = document.getElementById("message");
-messageArea.value = localStorage.getItem("chat_draft") || "";
-
-// 1. Identity Display Handlers
+// Gather DOM nodes cleanly
 const nameModal = document.getElementById("nameModal");
+const usernameInput = document.getElementById("usernameInput");
+const saveNameBtn = document.getElementById("saveNameBtn");
+const changeNameBtn = document.getElementById("changeNameBtn");
+const currentUserDisplay = document.getElementById("currentUserDisplay");
+const mobileUserDisplay = document.getElementById("mobileUserDisplay");
+const chatContainer = document.getElementById("chatContainer");
+const messageArea = document.getElementById("message");
+const chatHistory = document.getElementById("chatHistory");
+const sendBtn = document.getElementById("sendBtn");
+const imageInput = document.getElementById("imageInput");
+const imagePreviewContainer = document.getElementById("imagePreviewContainer");
+const imagePreview = document.getElementById("imagePreview");
+const cancelImage = document.getElementById("cancelImage");
+const themeBtn = document.getElementById("themeBtn");
+const clearChatBtn = document.getElementById("clearChatBtn");
+
+// Set initial view state safely
+if (chatContainer) chatContainer.style.backgroundColor = themes[currentThemeIndex];
+if (messageArea) messageArea.value = localStorage.getItem("chat_draft") || "";
+
 function updateIdentityDisplays() {
+  if (!nameModal) return;
   if (currentUsername) {
-    document.getElementById("currentUserDisplay").textContent = `Logged in as: ${currentUsername}`;
-    document.getElementById("mobileUserDisplay").textContent = `User: ${currentUsername}`;
+    if (currentUserDisplay) currentUserDisplay.textContent = `Logged in as: ${currentUsername}`;
+    if (mobileUserDisplay) mobileUserDisplay.textContent = `User: ${currentUsername}`;
     nameModal.classList.add("hidden-modal");
   } else {
     nameModal.classList.remove("hidden-modal");
@@ -47,22 +65,25 @@ function updateIdentityDisplays() {
 }
 updateIdentityDisplays();
 
-document.getElementById("saveNameBtn").addEventListener("click", () => {
-  const name = document.getElementById("usernameInput").value.trim();
-  if (name) {
-    localStorage.setItem("chat_username", name);
-    currentUsername = name;
-    updateIdentityDisplays();
-  }
-});
+if (saveNameBtn && usernameInput) {
+  saveNameBtn.addEventListener("click", () => {
+    const name = usernameInput.value.trim();
+    if (name) {
+      localStorage.setItem("chat_username", name);
+      currentUsername = name;
+      updateIdentityDisplays();
+    }
+  });
+}
 
-// Trigger name change modal manually
-document.getElementById("changeNameBtn").addEventListener("click", () => {
-  document.getElementById("usernameInput").value = currentUsername;
-  nameModal.classList.remove("hidden-modal");
-});
+if (changeNameBtn && usernameInput && nameModal) {
+  changeNameBtn.addEventListener("click", () => {
+    usernameInput.value = currentUsername;
+    nameModal.classList.remove("hidden-modal");
+  });
+}
 
-// 2. Image Compression
+// Image processing pipeline
 function compressImage(file) {
   return new Promise((resolve) => {
     const reader = new FileReader();
@@ -94,29 +115,29 @@ function compressImage(file) {
   });
 }
 
-const imageInput = document.getElementById("imageInput");
-const imagePreviewContainer = document.getElementById("imagePreviewContainer");
-const imagePreview = document.getElementById("imagePreview");
+if (imageInput) {
+  imageInput.addEventListener("change", async (e) => {
+    const file = e.target.files[0];
+    if (file && imagePreview && imagePreviewContainer) {
+      selectedImageBase64 = await compressImage(file);
+      imagePreview.src = selectedImageBase64;
+      imagePreviewContainer.classList.remove("hidden");
+    }
+  });
+}
 
-imageInput.addEventListener("change", async (e) => {
-  const file = e.target.files[0];
-  if (file) {
-    selectedImageBase64 = await compressImage(file);
-    imagePreview.src = selectedImageBase64;
-    imagePreviewContainer.classList.remove("hidden");
-  }
-});
+if (cancelImage) {
+  cancelImage.addEventListener("click", () => {
+    selectedImageBase64 = "";
+    if (imageInput) imageInput.value = "";
+    if (imagePreviewContainer) imagePreviewContainer.classList.add("hidden");
+  });
+}
 
-document.getElementById("cancelImage").addEventListener("click", () => {
-  selectedImageBase64 = "";
-  imageInput.value = "";
-  imagePreviewContainer.classList.add("hidden");
-});
-
-// 3. Real-time Stream with Grouping Logic
+// Firestore Feed Consumer
 const q = query(messagesCollection, orderBy("time", "asc"));
 onSnapshot(q, (snapshot) => {
-  const chatHistory = document.getElementById("chatHistory");
+  if (!chatHistory) return;
   chatHistory.innerHTML = "";
 
   if (snapshot.empty) {
@@ -142,17 +163,11 @@ onSnapshot(q, (snapshot) => {
       : "";
 
     let innerContent = "";
-    
     if (!isConsecutive) {
-      innerContent += `
-        <div class="message-meta">
-          <span class="sender-name">${data.sender}</span>
-        </div>
-      `;
+      innerContent += `<div class="message-meta"><span class="sender-name">${data.sender}</span></div>`;
     }
     
     innerContent += `<div class="bubble-layout">`;
-    
     if (data.image) {
       innerContent += `<img src="${data.image}" class="chat-img" alt="shared photo">`;
     }
@@ -184,40 +199,49 @@ onSnapshot(q, (snapshot) => {
   chatHistory.scrollTop = chatHistory.scrollHeight;
 });
 
-// 4. Input Interactions
-messageArea.addEventListener("input", (e) => {
-  localStorage.setItem("chat_draft", e.target.value);
-});
-
-document.getElementById("sendBtn").addEventListener("click", async () => {
-  const text = messageArea.value.trim();
-  if (!text && !selectedImageBase64) return;
-
-  await addDoc(messagesCollection, {
-    sender: currentUsername,
-    message: text,
-    image: selectedImageBase64,
-    time: Date.now()
+// Draft capture tracking
+if (messageArea) {
+  messageArea.addEventListener("input", (e) => {
+    localStorage.setItem("chat_draft", e.target.value);
   });
+}
 
-  messageArea.value = "";
-  localStorage.removeItem("chat_draft");
-  selectedImageBase64 = "";
-  imageInput.value = "";
-  imagePreviewContainer.classList.add("hidden");
-});
+if (sendBtn) {
+  sendBtn.addEventListener("click", async () => {
+    if (!messageArea) return;
+    const text = messageArea.value.trim();
+    if (!text && !selectedImageBase64) return;
 
-document.getElementById("themeBtn").addEventListener("click", () => {
-  currentThemeIndex = (currentThemeIndex + 1) % themes.length;
-  localStorage.setItem("chat_theme_index", currentThemeIndex);
-  document.getElementById("chatContainer").style.backgroundColor = themes[currentThemeIndex];
-});
-
-document.getElementById("clearChatBtn").addEventListener("click", async () => {
-  if (confirm("Are you sure you want to clear the entire chat log?")) {
-    const querySnapshot = await getDocs(messagesCollection);
-    querySnapshot.forEach(async (docSnapshot) => {
-      await deleteDoc(docSnapshot.ref);
+    await addDoc(messagesCollection, {
+      sender: currentUsername || "Anonymous",
+      message: text,
+      image: selectedImageBase64,
+      time: Date.now()
     });
-  }
-});
+
+    messageArea.value = "";
+    localStorage.removeItem("chat_draft");
+    selectedImageBase64 = "";
+    if (imageInput) imageInput.value = "";
+    if (imagePreviewContainer) imagePreviewContainer.classList.add("hidden");
+  });
+}
+
+if (themeBtn && chatContainer) {
+  themeBtn.addEventListener("click", () => {
+    currentThemeIndex = (currentThemeIndex + 1) % themes.length;
+    localStorage.setItem("chat_theme_index", currentThemeIndex);
+    chatContainer.style.backgroundColor = themes[currentThemeIndex];
+  });
+}
+
+if (clearChatBtn) {
+  clearChatBtn.addEventListener("click", async () => {
+    if (confirm("Are you sure you want to clear the entire chat log?")) {
+      const querySnapshot = await getDocs(messagesCollection);
+      querySnapshot.forEach(async (docSnapshot) => {
+        await deleteDoc(docSnapshot.ref);
+      });
+    }
+  });
+}
