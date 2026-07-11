@@ -56,7 +56,6 @@ const typingIndicator = document.getElementById("typingIndicator");
 if (chatContainer) chatContainer.style.backgroundColor = themes[currentThemeIndex];
 if (messageArea) messageArea.value = localStorage.getItem("chat_draft") || "";
 
-// Color Setup inside Modal Selection
 document.querySelectorAll(".color-dot").forEach(dot => {
   if (dot.getAttribute("data-color") === currentUserColor) {
     document.querySelectorAll(".color-dot").forEach(d => d.classList.remove("selected"));
@@ -76,6 +75,18 @@ async function updatePresence(isOnline, isTyping = false) {
     username: currentUsername,
     color: currentUserColor,
     isOnline: isOnline,
+    isTyping: isTyping,
+    lastSeen: Date.now()
+  }, { merge: true });
+}
+
+// Separate function to trigger AI presence indicators
+async function updateAiPresence(isTyping) {
+  const aiDocRef = doc(statusCollection, "ai_bot");
+  await setDoc(aiDocRef, {
+    username: "AI Bot",
+    color: "#ff9f43",
+    isOnline: true,
     isTyping: isTyping,
     lastSeen: Date.now()
   }, { merge: true });
@@ -159,7 +170,6 @@ if (cancelImage) {
   });
 }
 
-// Messages listener rendering rounded initial-avatars 
 const qMessages = query(messagesCollection, orderBy("time", "asc"));
 onSnapshot(qMessages, (snapshot) => {
   if (!chatHistory) return;
@@ -229,16 +239,23 @@ onSnapshot(qMessages, (snapshot) => {
   chatHistory.scrollTop = chatHistory.scrollHeight;
 });
 
-// Listener tracking Typing status state arrays across sessions
 onSnapshot(statusCollection, (snapshot) => {
   if (onlineUsersList) onlineUsersList.innerHTML = "";
   let typingUsers = [];
 
+  // Add permanent indicator row for our smart bot
+  if (onlineUsersList) {
+    const aiRow = document.createElement("div");
+    aiRow.className = "online-user-item";
+    aiRow.innerHTML = `<div class="mini-avatar" style="background:#ff9f43">🤖</div> <span>AI Bot</span>`;
+    onlineUsersList.appendChild(aiRow);
+  }
+
   snapshot.forEach(docSnap => {
     const data = docSnap.data();
-    const isRecent = (Date.now() - data.lastSeen) < 120000; // 2 minutes filter window
+    const isRecent = (Date.now() - data.lastSeen) < 120000;
 
-    if (data.isOnline && isRecent) {
+    if (data.username !== "AI Bot" && data.isOnline && isRecent) {
       if (onlineUsersList) {
         const firstLetter = data.username ? data.username.charAt(0).toUpperCase() : "?";
         const userRow = document.createElement("div");
@@ -249,10 +266,10 @@ onSnapshot(statusCollection, (snapshot) => {
         `;
         onlineUsersList.appendChild(userRow);
       }
-      
-      if (data.isTyping && data.username.toLowerCase() !== currentUsername.toLowerCase()) {
-        typingUsers.push(data.username);
-      }
+    }
+    
+    if (data.isTyping && data.username.toLowerCase() !== currentUsername.toLowerCase()) {
+      typingUsers.push(data.username);
     }
   });
 
@@ -266,11 +283,41 @@ onSnapshot(statusCollection, (snapshot) => {
   }
 });
 
-// Send Input Heartbeat monitoring actions
+// Advanced Free AI Integration using a clientless open endpoint
+async function fetchAiReply(userPrompt) {
+  try {
+    updateAiPresence(true);
+    
+    // Using a reliable, free, open-access text completion endpoint
+    const response = await fetch("https://text.pollinations.ai/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        messages: [
+          { role: "system", content: "You are a helpful, super fast, and cool AI assistant directly inside a developer group chat." },
+          { role: "user", content: userPrompt }
+        ]
+      })
+    });
+
+    const replyText = await response.text();
+    
+    await addDoc(messagesCollection, {
+      sender: "AI Bot",
+      senderColor: "#ff9f43",
+      message: replyText || "I heard you, but my brain stalled out. Try asking again!",
+      time: Date.now()
+    });
+  } catch (err) {
+    console.error("AI Error:", err);
+  } finally {
+    updateAiPresence(false);
+  }
+}
+
 if (messageArea) {
   messageArea.addEventListener("input", (e) => {
     localStorage.setItem("chat_draft", e.target.value);
-    
     updatePresence(true, true);
     
     clearTimeout(typingTimeout);
@@ -308,6 +355,14 @@ if (sendBtn) {
     
     clearTimeout(typingTimeout);
     updatePresence(true, false);
+
+    // Trigger AI if message contains the prompt keyword '@ai'
+    if (text.toLowerCase().startsWith("@ai")) {
+      const cleanedPrompt = text.substring(3).trim();
+      if (cleanedPrompt) {
+        fetchAiReply(cleanedPrompt);
+      }
+    }
   });
 }
 
