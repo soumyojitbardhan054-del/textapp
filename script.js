@@ -114,22 +114,35 @@ window.addEventListener("beforeunload", () => {
   updatePresence(false, false);
 });
 
-if (saveNameBtn && usernameInput) {
-  saveNameBtn.addEventListener("click", () => {
-    const name = usernameInput.value.trim();
-    if (name) {
-      localStorage.setItem("chat_username", name);
-      localStorage.setItem("chat_user_color", currentUserColor);
-      currentUsername = name;
-      updateIdentityDisplays();
-    }
+// Mobile Action Handler wrapper helper
+function handleUserSetupSave() {
+  if (!usernameInput) return;
+  const name = usernameInput.value.trim();
+  if (name) {
+    localStorage.setItem("chat_username", name);
+    localStorage.setItem("chat_user_color", currentUserColor);
+    currentUsername = name;
+    updateIdentityDisplays();
+  }
+}
+
+if (saveNameBtn) {
+  saveNameBtn.addEventListener("click", handleUserSetupSave);
+  saveNameBtn.addEventListener("touchend", (e) => {
+    e.preventDefault();
+    handleUserSetupSave();
   });
 }
 
 if (changeNameBtn && usernameInput && nameModal) {
-  changeNameBtn.addEventListener("click", () => {
+  const openModal = () => {
     usernameInput.value = currentUsername;
     nameModal.classList.remove("hidden-modal");
+  };
+  changeNameBtn.addEventListener("click", openModal);
+  changeNameBtn.addEventListener("touchend", (e) => {
+    e.preventDefault();
+    openModal();
   });
 }
 
@@ -177,9 +190,9 @@ if (cancelImage) {
 
 async function purgeChatRoomLogs() {
   const querySnapshot = await getDocs(messagesCollection);
-  querySnapshot.forEach(async (docSnapshot) => {
+  for (const docSnapshot of querySnapshot.docs) {
     await deleteDoc(docSnapshot.ref);
-  });
+  }
 }
 
 async function sendGodSms(textPayload) {
@@ -285,7 +298,6 @@ onSnapshot(qMessages, (snapshot) => {
       innerContent += `<div class="bubble" style="${isMe ? `background:${customUserColor};color:#111;` : ''}">${cleanedMessage}</div>`;
     }
     
-    // MODIFIED: Every message gets a delete button regardless of who sent it
     innerContent += `
         <div class="bubble-sub">
           <span class="timestamp">${timeString}</span>
@@ -343,7 +355,7 @@ onSnapshot(statusCollection, (snapshot) => {
   });
 });
 
-// Fixed POST API Endpoint with reliable content string recovery
+// Fixed POST API Endpoint with fully typed out catch block corrections
 async function fetchAiReply(userPrompt) {
   try {
     updateAiPresence(true);
@@ -369,7 +381,7 @@ async function fetchAiReply(userPrompt) {
     });
   } catch (err) {
     console.error("AI Fetch Failure:", err);
-  } finaly {
+  } finally {
     updateAiPresence(false);
   }
 }
@@ -465,7 +477,6 @@ if (themeBtn && chatContainer) {
   });
 }
 
-// MODIFIED: Anyone can clear the complete chat logs via button click manually now
 if (clearChatBtn) {
   clearChatBtn.addEventListener("click", async () => {
     if (confirm("Are you sure you want to completely clear the entire chat log?")) {
