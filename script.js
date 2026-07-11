@@ -34,7 +34,7 @@ let typingTimeout = null;
 const themes = ["#1e2330", "#2c1a30", "#1a2e26", "#301a1a"];
 let currentThemeIndex = parseInt(localStorage.getItem("chat_theme_index")) || 0;
 
-// Central Master Timer Sync Variable
+// Shared Persistent Timer State
 let targetEndTimestamp = 0;
 let godIsActive = true;
 let currentAnswer = null;
@@ -224,18 +224,36 @@ function makeHardQuestion() {
   return `Solve to silence me: (${num1} × ${num2}) - ${num3} = ?`;
 }
 
-// Fixed: Persistent shared time tracking via standalone Firebase data stream listener
+// Global UI management memory states
+let globalTimerDisplayString = "";
+let globalTypingDisplayString = "";
+
+function combineFooterDisplays() {
+  if (!typingIndicator) return;
+  
+  let parts = [];
+  if (globalTimerDisplayString) parts.push(globalTimerDisplayString);
+  if (globalTypingDisplayString) parts.push(globalTypingDisplayString);
+  
+  if (parts.length > 0) {
+    typingIndicator.innerHTML = parts.join(" | ");
+    typingIndicator.classList.remove("hidden");
+  } else {
+    typingIndicator.classList.add("hidden");
+  }
+}
+
+// Sync master endpoint timer via Firestore stream
 onSnapshot(doc(db, "status", "timer_state"), async (docSnap) => {
   if (docSnap.exists()) {
-    const timerData = docSnap.data();
-    targetEndTimestamp = timerData.endTime;
+    targetEndTimestamp = docSnap.data().endTime;
   } else {
-    // Initializer backup loop config if completely empty
     const freshEnd = Date.now() + 600000; 
     await setDoc(doc(db, "status", "timer_state"), { endTime: freshEnd });
   }
 });
 
+// Master Countdown Engine Loop
 setInterval(async () => {
   if (!targetEndTimestamp) return;
 
@@ -245,22 +263,19 @@ setInterval(async () => {
   const minutesLeft = Math.floor(remainingSeconds / 60);
   const secondsLeft = remainingSeconds % 60;
 
-  if (typingIndicator) {
-    typingIndicator.textContent = `Room Purge in: ${minutesLeft}m ${secondsLeft}s | God Mode: ${godIsActive ? "ACTIVE 👁️" : "DISMISSED 🤐"}`;
-    typingIndicator.classList.remove("hidden");
-  }
+  globalTimerDisplayString = `Room Purge in: ${minutesLeft}m ${secondsLeft}s [God Mode: ${godIsActive ? "👁️ ACTIVE" : "🤐 MUTED"}]`;
+  combineFooterDisplays();
 
   if (godIsActive && remainingSeconds === 120 && !warningTwoMinSent) {
     warningTwoMinSent = true;
-    sendGodSms("⚠️ TWO MINUTES REMAINING. Your chat logs draw closer to terminal erasure. Behave or face the void.");
+    sendGodSms("⚠️ TWO MINUTES REMAINING. Your chat logs draw closer to terminal erasure.");
   }
 
   if (godIsActive && remainingSeconds <= 5 && remainingSeconds > 0) {
-    sendGodSms(`🚨 ${remainingSeconds} SECONDS REMAINING! Your behavioral logs are absolute trash. Purification imminent.`);
+    sendGodSms(`🚨 ${remainingSeconds} SECONDS REMAINING! Purification imminent.`);
   }
 
   if (remainingSeconds <= 0) {
-    // Only execute structural cleanup on first entry pass loop synchronization
     targetEndTimestamp = 0; 
     await purgeChatRoomLogs();
     
@@ -354,7 +369,7 @@ onSnapshot(qMessages, (snapshot) => {
   chatHistory.scrollTop = chatHistory.scrollHeight;
 });
 
-// Fixed: The typing string dynamic status tracker updates properly on screen via this stream block
+// Presence/Typing Core Channel Stream
 onSnapshot(statusCollection, (snapshot) => {
   if (onlineUsersList) onlineUsersList.innerHTML = "";
   if (onlineUsersList) {
@@ -387,22 +402,18 @@ onSnapshot(statusCollection, (snapshot) => {
         onlineUsersList.appendChild(userRow);
       }
 
-      // Check user specific activity states
       if (data.isTyping && data.username !== currentUsername) {
         typingUsers.push(data.username);
       }
     }
   });
 
-  // Re-append dynamic footer details back into workspace views if missing
-  if (typingIndicator && !typingIndicator.textContent.includes("Purge")) {
-     if (typingUsers.length > 0) {
-       typingIndicator.innerHTML = `✍️ ${typingUsers.join(", ")} ${typingUsers.length === 1 ? "is" : "are"} typing...`;
-       typingIndicator.classList.remove("hidden");
-     } else {
-       typingIndicator.classList.add("hidden");
-     }
+  if (typingUsers.length > 0) {
+    globalTypingDisplayString = `✍️ ${typingUsers.join(", ")} ${typingUsers.length === 1 ? "is" : "are"} typing...`;
+  } else {
+    globalTypingDisplayString = "";
   }
+  combineFooterDisplays();
 });
 
 async function fetchAiReply(userPrompt) {
