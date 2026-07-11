@@ -2,43 +2,66 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Text App</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Premium Chat Room</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
 <div id="nameModal" class="modal">
     <div class="modal-content">
-        <h2>Enter Your Name</h2>
+        <h2>Welcome to Chat</h2>
+        <p>Please enter your name to join the workspace.</p>
         <input type="text" id="usernameInput" placeholder="e.g., brine or jia">
-        <button id="saveNameBtn">Start Chatting</button>
+        <button id="saveNameBtn">Enter Chatroom</button>
     </div>
 </div>
 
-<div class="container">
-    <div class="chat-header">
-        <div class="header-info">
-            <span class="status-dot"></span>
-            <h1>💬 Chat Room</h1>
+<div class="app-layout">
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <h3>⚡ Workspace</h3>
         </div>
-        <button id="clearChatBtn" class="danger-btn">Clear Chat</button>
-    </div>
+        <div class="sidebar-info">
+            <div class="user-card">
+                <span id="currentUserDisplay">Connecting...</span>
+                <span class="status-dot"></span>
+            </div>
+            <p class="sidebar-tip">Images are automatically compressed to load fast!</p>
+        </div>
+    </aside>
 
-    <div id="chatHistory"></div>
+    <main class="chat-container">
+        <header class="chat-header">
+            <div class="header-details">
+                <h1>💬 Shared Chat Room</h1>
+                <p id="mobileUserDisplay">Active Session</p>
+            </div>
+            <button id="clearChatBtn" class="danger-btn">Clear History</button>
+        </header>
 
-    <div class="input-area">
-        <div id="imagePreviewContainer" class="hidden">
-            <span id="cancelImage">✕</span>
-            <img id="imagePreview" src="" alt="Preview">
-        </div>
-        <div class="text-and-file">
-            <label for="imageInput" class="file-label">🖼️</label>
-            <input type="file" id="imageInput" accept="image/*" style="display: none;">
-            <textarea id="message" placeholder="Type your message here..."></textarea>
-            <button id="sendBtn">Send</button>
-        </div>
-    </div>
+        <div id="chatHistory"></div>
+
+        <footer class="input-area">
+            <div id="imagePreviewContainer" class="hidden">
+                <img id="imagePreview" src="" alt="Preview">
+                <span id="cancelImage">✕</span>
+            </div>
+            
+            <div class="action-bar">
+                <label for="imageInput" class="file-label" title="Attach an Image">
+                    🖼️
+                </label>
+                <input type="file" id="imageInput" accept="image/*" style="display: none;">
+                
+                <textarea id="message" placeholder="Type a message..."></textarea>
+                
+                <button id="sendBtn">
+                    <svg viewBox="0 0 24 24" width="24" height="24"><path fill="currentColor" d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+                </button>
+            </div>
+        </footer>
+    </main>
 </div>
 
 <script type="module" src="script.js"></script>
