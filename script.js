@@ -9,8 +9,7 @@ import {
   query,
   orderBy,
   getDocs,
-  deleteDoc,
-  updateDoc
+  deleteDoc
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -35,7 +34,6 @@ let typingTimeout = null;
 const themes = ["#1e2330", "#2c1a30", "#1a2e26", "#301a1a"];
 let currentThemeIndex = parseInt(localStorage.getItem("chat_theme_index")) || 0;
 
-// DOM Selectors
 const nameModal = document.getElementById("nameModal");
 const usernameInput = document.getElementById("usernameInput");
 const saveNameBtn = document.getElementById("saveNameBtn");
@@ -58,9 +56,9 @@ const typingIndicator = document.getElementById("typingIndicator");
 if (chatContainer) chatContainer.style.backgroundColor = themes[currentThemeIndex];
 if (messageArea) messageArea.value = localStorage.getItem("chat_draft") || "";
 
-// Color Picker Setup inside Modal
+// Color Setup inside Modal Selection
 document.querySelectorAll(".color-dot").forEach(dot => {
-  if(dot.getAttribute("data-color") === currentUserColor){
+  if (dot.getAttribute("data-color") === currentUserColor) {
     document.querySelectorAll(".color-dot").forEach(d => d.classList.remove("selected"));
     dot.classList.add("selected");
   }
@@ -71,23 +69,9 @@ document.querySelectorAll(".color-dot").forEach(dot => {
   });
 });
 
-function updateIdentityDisplays() {
-  if (!nameModal) return;
-  if (currentUsername) {
-    if (currentUserDisplay) currentUserDisplay.textContent = `User: ${currentUsername}`;
-    if (mobileUserDisplay) mobileUserDisplay.textContent = `Profile: ${currentUsername}`;
-    nameModal.classList.add("hidden-modal");
-    updatePresence(true);
-  } else {
-    nameModal.classList.remove("hidden-modal");
-  }
-}
-updateIdentityDisplays();
-
-// Presence Sync State Function
 async function updatePresence(isOnline, isTyping = false) {
   if (!currentUsername) return;
-  const userDocRef = doc(statusCollection, currentUsername.toLowerCase());
+  const userDocRef = doc(statusCollection, currentUsername.toLowerCase().replace(/\s+/g, '_'));
   await setDoc(userDocRef, {
     username: currentUsername,
     color: currentUserColor,
@@ -97,7 +81,19 @@ async function updatePresence(isOnline, isTyping = false) {
   }, { merge: true });
 }
 
-// Global cleanup tracking presence state changes
+function updateIdentityDisplays() {
+  if (!nameModal) return;
+  if (currentUsername) {
+    if (currentUserDisplay) currentUserDisplay.textContent = `User: ${currentUsername}`;
+    if (mobileUserDisplay) mobileUserDisplay.textContent = `Profile: ${currentUsername}`;
+    nameModal.classList.add("hidden-modal");
+    updatePresence(true, false);
+  } else {
+    nameModal.classList.remove("hidden-modal");
+  }
+}
+updateIdentityDisplays();
+
 window.addEventListener("beforeunload", () => {
   updatePresence(false, false);
 });
@@ -163,7 +159,7 @@ if (cancelImage) {
   });
 }
 
-// Message Stream Listener
+// Messages listener rendering rounded initial-avatars 
 const qMessages = query(messagesCollection, orderBy("time", "asc"));
 onSnapshot(qMessages, (snapshot) => {
   if (!chatHistory) return;
@@ -190,13 +186,13 @@ onSnapshot(qMessages, (snapshot) => {
       ? new Date(data.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
       : "";
 
-    // Pull individual saved profile accent line tracking
     const customUserColor = data.senderColor || "var(--accent)";
+    const firstInitial = data.sender ? data.sender.charAt(0).toUpperCase() : "?";
 
     let innerContent = "";
     if (!isConsecutive) {
       innerContent += `<div class="message-meta">
-        <span class="sender-avatar-dot" style="background:${customUserColor}"></span>
+        <div class="user-avatar-circle" style="background:${customUserColor}">${firstInitial}</div>
         <span class="sender-name" style="color:${customUserColor}">${data.sender}</span>
       </div>`;
     }
@@ -233,22 +229,24 @@ onSnapshot(qMessages, (snapshot) => {
   chatHistory.scrollTop = chatHistory.scrollHeight;
 });
 
-// Listener: Online Presence & Typing State Updates
+// Listener tracking Typing status state arrays across sessions
 onSnapshot(statusCollection, (snapshot) => {
   if (onlineUsersList) onlineUsersList.innerHTML = "";
   let typingUsers = [];
 
   snapshot.forEach(docSnap => {
     const data = docSnap.data();
-    
-    // Check if the presence heartbeat payload is recent (within last 3 mins)
-    const isRecent = (Date.now() - data.lastSeen) < 180000;
+    const isRecent = (Date.now() - data.lastSeen) < 120000; // 2 minutes filter window
 
     if (data.isOnline && isRecent) {
       if (onlineUsersList) {
+        const firstLetter = data.username ? data.username.charAt(0).toUpperCase() : "?";
         const userRow = document.createElement("div");
         userRow.className = "online-user-item";
-        userRow.innerHTML = `<span class="dot" style="background:${data.color || 'var(--accent)'}"></span> ${data.username}`;
+        userRow.innerHTML = `
+          <div class="mini-avatar" style="background:${data.color || 'var(--accent)'}">${firstLetter}</div>
+          <span>${data.username}</span>
+        `;
         onlineUsersList.appendChild(userRow);
       }
       
@@ -258,10 +256,9 @@ onSnapshot(statusCollection, (snapshot) => {
     }
   });
 
-  // Typing state layout handling
   if (typingIndicator) {
     if (typingUsers.length > 0) {
-      typingIndicator.textContent = `${typingUsers.join(", ")} is typing...`;
+      typingIndicator.textContent = `${typingUsers.join(", ")} ${typingUsers.length === 1 ? 'is' : 'are'} typing...`;
       typingIndicator.classList.remove("hidden");
     } else {
       typingIndicator.classList.add("hidden");
@@ -269,7 +266,7 @@ onSnapshot(statusCollection, (snapshot) => {
   }
 });
 
-// Capture keystrokes for Typing Indicator State Trigger
+// Send Input Heartbeat monitoring actions
 if (messageArea) {
   messageArea.addEventListener("input", (e) => {
     localStorage.setItem("chat_draft", e.target.value);
@@ -279,7 +276,7 @@ if (messageArea) {
     clearTimeout(typingTimeout);
     typingTimeout = setTimeout(() => {
       updatePresence(true, false);
-    }, 2000);
+    }, 2500);
   });
   
   messageArea.addEventListener("keydown", (e) => {
@@ -295,7 +292,6 @@ if (sendBtn) {
     const text = messageArea.value.trim();
     if (!text && !selectedImageBase64) return;
 
-    // Push message payload combined with user profile metrics
     await addDoc(messagesCollection, {
       sender: currentUsername || "Anonymous",
       senderColor: currentUserColor,
@@ -309,6 +305,8 @@ if (sendBtn) {
     selectedImageBase64 = "";
     if (imageInput) imageInput.value = "";
     if (imagePreviewContainer) imagePreviewContainer.classList.add("hidden");
+    
+    clearTimeout(typingTimeout);
     updatePresence(true, false);
   });
 }
