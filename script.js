@@ -198,7 +198,6 @@ if (messageArea) {
     localStorage.setItem("chat_draft", e.target.value);
   });
   
-  // Submit message when tapping Enter on phone keyboards
   messageArea.addEventListener("keydown", (e) => {
     if (e.key === "Enter") {
       sendBtn.click();
