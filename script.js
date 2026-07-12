@@ -541,4 +541,27 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     });
   }
+  // Mobile scroll helper button
+const scrollBtn = document.createElement("button");
+scrollBtn.id = "scrollBottomBtn";
+scrollBtn.type = "button";
+scrollBtn.textContent = "⬇";
+scrollBtn.title = "Scroll to latest message";
+document.querySelector(".chat-container")?.appendChild(scrollBtn);
+
+const scrollToLatest = () => {
+  if (!chatHistory) return;
+  chatHistory.scrollTo({
+    top: chatHistory.scrollHeight,
+    behavior: "smooth"
+  });
+};
+
+scrollBtn.addEventListener("click", scrollToLatest);
+
+chatHistory?.addEventListener("scroll", () => {
+  const nearBottom =
+    chatHistory.scrollHeight - chatHistory.scrollTop - chatHistory.clientHeight < 80;
+  scrollBtn.style.display = nearBottom ? "none" : "flex";
+});
 });
