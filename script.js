@@ -42,9 +42,6 @@ let warningTwoMinSent = false;
 let globalTimerDisplayString = "";
 let globalTypingDisplayString = "";
 
-// ------------------------------------------------------------------
-// Core initialization wrapped to ensure HTML is fully loaded first
-// ------------------------------------------------------------------
 document.addEventListener("DOMContentLoaded", () => {
   const nameModal = document.getElementById("nameModal");
   const usernameInput = document.getElementById("usernameInput");
@@ -68,7 +65,6 @@ document.addEventListener("DOMContentLoaded", () => {
   if (chatContainer) chatContainer.style.backgroundColor = themes[currentThemeIndex];
   if (messageArea) messageArea.value = localStorage.getItem("chat_draft") || "";
 
-  // Color Setup
   document.querySelectorAll(".color-dot").forEach(dot => {
     if (dot.getAttribute("data-color") === currentUserColor) {
       document.querySelectorAll(".color-dot").forEach(d => d.classList.remove("selected"));
@@ -81,45 +77,65 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  // --- SECRET VAULT SYSTEM ---
-  let vaultModal = null;
+  // --- RECONSTRUCTED VAULT UI OVERLAY ---
+  let vaultContainer = null;
   let vaultHistory = null;
   let vaultInput = null;
 
   function buildSecretVaultUI() {
-    if (document.getElementById("secretVaultModal")) return;
+    if (document.getElementById("secretVaultContainer")) return;
 
-    vaultModal = document.createElement("div");
-    vaultModal.id = "secretVaultModal";
-    vaultModal.className = "modal hidden-modal";
-    vaultModal.style.zIndex = "999999";
-    vaultModal.innerHTML = `
-      <div class="modal-content" style="width: 320px; height: 400px; display: flex; flex-direction: column; background: #07090d; border: 1px solid #ff9f43;">
-        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; padding-bottom: 10px; margin-bottom: 10px;">
-          <h2 style="margin: 0; color: #ff9f43; font-size: 16px;">¢ Secret Vault</h2>
-          <button id="closeVaultBtn" style="background: transparent; color: #888; border: none; font-size: 16px; cursor: pointer;">✖</button>
+    // Full screen wrapper container to ensure layout isolation on laptops
+    vaultContainer = document.createElement("div");
+    vaultContainer.id = "secretVaultContainer";
+    vaultContainer.style.position = "fixed";
+    vaultContainer.style.top = "0";
+    vaultContainer.style.left = "0";
+    vaultContainer.style.width = "100vw";
+    vaultContainer.style.height = "100vh";
+    vaultContainer.style.backgroundColor = "rgba(0, 0, 0, 0.75)";
+    vaultContainer.style.display = "none"; 
+    vaultContainer.style.justifyContent = "center";
+    vaultContainer.style.alignItems = "center";
+    vaultContainer.style.zIndex = "999999";
+
+    vaultContainer.innerHTML = `
+      <div style="width: 90%; max-width: 400px; height: 500px; display: flex; flex-direction: column; background: #0b0e14; border: 2px solid #ff9f43; border-radius: 8px; padding: 15px; box-sizing: border-box;">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #222; padding-bottom: 10px; margin-bottom: 15px;">
+          <h2 style="margin: 0; color: #ff9f43; font-size: 18px; font-family: monospace;">¢ SECRET VAULT</h2>
+          <button id="closeVaultBtn" style="background: transparent; color: #ff4757; border: none; font-size: 20px; cursor: pointer; padding: 0 5px;">✖</button>
         </div>
-        <div id="vaultHistory" style="flex: 1; overflow-y: auto; text-align: left; font-size: 12px; color: #00d2d3; display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px;"></div>
-        <div style="display: flex; gap: 5px;">
-          <input type="text" id="vaultInput" placeholder="Secure msg..." style="flex: 1; padding: 8px; border-radius: 4px; border: 1px solid #333; background: #111; color: #fff; outline:none;">
-          <button id="vaultSendBtn" style="background: #ff9f43; color: #111; border: none; border-radius: 4px; padding: 0 12px; cursor: pointer; font-weight: bold;">Send</button>
+        <div id="vaultHistory" style="flex: 1; overflow-y: auto; text-align: left; font-size: 13px; font-family: monospace; display: flex; flex-direction: column; gap: 8px; margin-bottom: 15px; padding-right: 5px;"></div>
+        <div style="display: flex; gap: 8px;">
+          <input type="text" id="vaultInput" placeholder="Send optimized bytes..." style="flex: 1; padding: 10px; border-radius: 4px; border: 1px solid #333; background: #161b22; color: #fff; outline: none;">
+          <button id="vaultSendBtn" style="background: #ff9f43; color: #111; border: none; border-radius: 4px; padding: 0 16px; cursor: pointer; font-weight: bold;">Send</button>
         </div>
       </div>
     `;
-    document.body.appendChild(vaultModal);
+    document.body.appendChild(vaultContainer);
 
     vaultHistory = document.getElementById("vaultHistory");
     vaultInput = document.getElementById("vaultInput");
     
     document.getElementById("closeVaultBtn").addEventListener("click", () => {
-      vaultModal.classList.add("hidden-modal");
+      vaultContainer.style.display = "none";
+    });
+
+    // Close window if user clicks on the darkened overlay layout outside the modal panel
+    vaultContainer.addEventListener("click", (e) => {
+      if (e.target === vaultContainer) vaultContainer.style.display = "none";
     });
 
     document.getElementById("vaultSendBtn").addEventListener("click", async () => {
       const text = vaultInput.value.trim();
       if (!text) return;
+      // High compression signature: minimal field labels save backend data metrics
       await addDoc(secretVaultCollection, { s: currentUsername, m: text, t: Date.now() });
       vaultInput.value = "";
+    });
+
+    vaultInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") document.getElementById("vaultSendBtn").click();
     });
 
     const qSecret = query(secretVaultCollection, orderBy("t", "asc"));
@@ -129,10 +145,11 @@ document.addEventListener("DOMContentLoaded", () => {
       snapshot.forEach(docSnap => {
         const data = docSnap.data();
         const div = document.createElement("div");
-        div.style.background = "#1a1a1a";
-        div.style.padding = "6px 8px";
+        div.style.background = "#161b22";
+        div.style.padding = "8px";
         div.style.borderRadius = "4px";
-        div.innerHTML = `<strong style="color:#ff9f43">${data.s}:</strong> <span style="color:#ddd">${data.m}</span>`;
+        div.style.borderLeft = "3px solid #ff9f43";
+        div.innerHTML = `<strong style="color:#ff9f43">${data.s}:</strong> <span style="color:#e6edf3; word-break: break-all;">${data.m}</span>`;
         vaultHistory.appendChild(div);
       });
       vaultHistory.scrollTop = vaultHistory.scrollHeight;
@@ -151,13 +168,17 @@ document.addEventListener("DOMContentLoaded", () => {
         secretBtn.className = "secondary-btn";
         secretBtn.style.backgroundColor = "#ff9f43";
         secretBtn.style.color = "#111";
+        secretBtn.style.fontWeight = "bold";
         secretBtn.textContent = "Vault ¢";
         headerActions.insertBefore(secretBtn, clearChatBtn);
         
-        secretBtn.addEventListener("click", () => vaultModal.classList.remove("hidden-modal"));
+        secretBtn.addEventListener("click", () => {
+          if (vaultContainer) vaultContainer.style.display = "flex";
+        });
       }
     } else {
       if (existingSecretBtn) existingSecretBtn.remove();
+      if (vaultContainer) vaultContainer.style.display = "none";
     }
   }
 
@@ -266,7 +287,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // --- GOD MODE & PURGE TIMER ---
+  // --- ENGINE LOOPS & FIRESTORE HANDLERS ---
   async function purgeChatRoomLogs() {
     const querySnapshot = await getDocs(messagesCollection);
     for (const docSnapshot of querySnapshot.docs) {
@@ -336,7 +357,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }, 1000);
 
-  // --- MAIN CHAT STREAM ---
   const qMessages = query(messagesCollection, orderBy("time", "asc"));
   onSnapshot(qMessages, (snapshot) => {
     if (!chatHistory) return;
@@ -391,7 +411,6 @@ document.addEventListener("DOMContentLoaded", () => {
     chatHistory.scrollTop = chatHistory.scrollHeight;
   });
 
-  // --- ONLINE STATUS & TYPING ---
   onSnapshot(statusCollection, (snapshot) => {
     if (onlineUsersList) onlineUsersList.innerHTML = "";
     if (onlineUsersList) {
@@ -423,7 +442,6 @@ document.addEventListener("DOMContentLoaded", () => {
     combineFooterDisplays();
   });
 
-  // --- AI BOT ---
   async function fetchAiReply(userPrompt) {
     try {
       updateAiPresence(true);
@@ -442,32 +460,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // --- INPUT HANDLING ---
   if (messageArea) {
     messageArea.addEventListener("input", (e) => {
-      localStorage.setItem("chat_draft", e.target.value);
-      updatePresence(true, true);
-      clearTimeout(typingTimeout);
-      typingTimeout = setTimeout(() => { updatePresence(true, false); }, 2500);
-    });
-    messageArea.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") sendBtn.click();
-    });
-  }
-
-  if (sendBtn) {
-    sendBtn.addEventListener("click", async () => {
-      if (!messageArea) return;
-      const text = messageArea.value.trim();
-      if (!text && !selectedImageBase64) return;
-
-      if (godIsActive && currentAnswer !== null) {
-        if (parseInt(text) === currentAnswer) {
-          godIsActive = false; currentAnswer = null; messageArea.value = "";
-          await sendGodSms("❌ Direct interface command approved. I am silenced until the cycle resets.");
-          return;
-        } else {
-          messageArea.value = "";
-          await sendGodSms("❌ INCORRECT. Try again or face total deletion.");
-          return;
- 
+    
