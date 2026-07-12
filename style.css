@@ -74,13 +74,13 @@ body {
 .sidebar-tip { font-size: 11px; color: var(--text-muted); line-height: 1.4; margin-top: auto; }
 
 .chat-container {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    position: relative;
-    z-index: 1;
-    overflow: hidden;
-    height: 100%;
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    position:relative;
+    z-index:1;
+    overflow:hidden;
+    min-height:0;
 }
 
 .chat-header {
@@ -174,7 +174,7 @@ body {
 }
 
 .system-msg { text-align: center; color: var(--text-muted); margin-top: 20px; font-style: italic; font-size: 13px; }
-.input-area { padding: 15px 20px; background: var(--bg-side); border-top: 1px solid #2b313f; }
+.input-area {flex-shrink:0; padding:15px 20px; background:var(--bg-side); border-top:1px solid #2b313f;}
 .action-bar { display: flex; align-items: center; gap: 10px; background: #222938; padding: 6px 12px; border-radius: 20px; }
 .file-label { font-size: 18px; cursor: pointer; user-select: none; }
 
