@@ -364,7 +364,10 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     });
 
-    chatHistory.scrollTop = chatHistory.scrollHeight;
+    chatHistory.scrollTo({
+  top: chatHistory.scrollHeight,
+  behavior: "smooth"
+});
   });
 
   onSnapshot(statusCollection, (snapshot) => {
