@@ -69,12 +69,19 @@
             </div>
             
             <div class="action-bar">
-                <label for="imageInput" class="file-label" title="Attach an Image">
-                    🖼️
-                </label>
-                <input
+                <label id="attachBtn" class="file-label" title="Attach">
+    📎
+</label>
+
+<input
     type="file"
-    id="imageInput"
+    id="galleryInput"
+    accept="image/*"
+    style="display:none;">
+
+<input
+    type="file"
+    id="cameraInput"
     accept="image/*"
     capture="environment"
     style="display:none;">
