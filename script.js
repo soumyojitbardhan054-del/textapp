@@ -85,7 +85,6 @@ document.addEventListener("DOMContentLoaded", () => {
   function buildSecretVaultUI() {
     if (document.getElementById("secretVaultContainer")) return;
 
-    // Full screen wrapper container to ensure layout isolation on laptops
     vaultContainer = document.createElement("div");
     vaultContainer.id = "secretVaultContainer";
     vaultContainer.style.position = "fixed";
@@ -93,14 +92,14 @@ document.addEventListener("DOMContentLoaded", () => {
     vaultContainer.style.left = "0";
     vaultContainer.style.width = "100vw";
     vaultContainer.style.height = "100vh";
-    vaultContainer.style.backgroundColor = "rgba(0, 0, 0, 0.75)";
-    vaultContainer.style.display = "none"; 
+    vaultContainer.style.backgroundColor = "rgba(0, 0, 0, 0.85)";
+    vaultContainer.style.setProperty("display", "none", "important"); 
     vaultContainer.style.justifyContent = "center";
     vaultContainer.style.alignItems = "center";
     vaultContainer.style.zIndex = "999999";
 
     vaultContainer.innerHTML = `
-      <div style="width: 90%; max-width: 400px; height: 500px; display: flex; flex-direction: column; background: #0b0e14; border: 2px solid #ff9f43; border-radius: 8px; padding: 15px; box-sizing: border-box;">
+      <div style="width: 95%; max-width: 400px; height: 500px; display: flex; flex-direction: column; background: #0b0e14; border: 2px solid #ff9f43; border-radius: 8px; padding: 15px; box-sizing: border-box; box-shadow: 0 0 20px rgba(255,159,67,0.2);">
         <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #222; padding-bottom: 10px; margin-bottom: 15px;">
           <h2 style="margin: 0; color: #ff9f43; font-size: 18px; font-family: monospace;">¢ SECRET VAULT</h2>
           <button id="closeVaultBtn" style="background: transparent; color: #ff4757; border: none; font-size: 20px; cursor: pointer; padding: 0 5px;">✖</button>
@@ -118,18 +117,16 @@ document.addEventListener("DOMContentLoaded", () => {
     vaultInput = document.getElementById("vaultInput");
     
     document.getElementById("closeVaultBtn").addEventListener("click", () => {
-      vaultContainer.style.display = "none";
+      vaultContainer.style.setProperty("display", "none", "important");
     });
 
-    // Close window if user clicks on the darkened overlay layout outside the modal panel
     vaultContainer.addEventListener("click", (e) => {
-      if (e.target === vaultContainer) vaultContainer.style.display = "none";
+      if (e.target === vaultContainer) vaultContainer.style.setProperty("display", "none", "important");
     });
 
     document.getElementById("vaultSendBtn").addEventListener("click", async () => {
       const text = vaultInput.value.trim();
       if (!text) return;
-      // High compression signature: minimal field labels save backend data metrics
       await addDoc(secretVaultCollection, { s: currentUsername, m: text, t: Date.now() });
       vaultInput.value = "";
     });
@@ -173,47 +170,63 @@ document.addEventListener("DOMContentLoaded", () => {
         headerActions.insertBefore(secretBtn, clearChatBtn);
         
         secretBtn.addEventListener("click", () => {
-          if (vaultContainer) vaultContainer.style.display = "flex";
+          if (vaultContainer) vaultContainer.style.setProperty("display", "flex", "important");
         });
       }
     } else {
       if (existingSecretBtn) existingSecretBtn.remove();
-      if (vaultContainer) vaultContainer.style.display = "none";
+      if (vaultContainer) vaultContainer.style.setProperty("display", "none", "important");
     }
   }
 
   // --- PRESENCE & IDENTITY ---
   async function updatePresence(isOnline, isTyping = false, oldName = "") {
     if (!currentUsername) return;
-    if (oldName && oldName.toLowerCase() !== currentUsername.toLowerCase()) {
-      const oldDocRef = doc(statusCollection, oldName.toLowerCase().replace(/\s+/g, '_'));
-      await deleteDoc(oldDocRef).catch(() => {});
-    }
-    const userDocRef = doc(statusCollection, currentUsername.toLowerCase().replace(/\s+/g, '_'));
-    await setDoc(userDocRef, {
-      username: currentUsername, color: currentUserColor, isOnline: isOnline, isTyping: isTyping, lastSeen: Date.now()
-    }, { merge: true });
+    try {
+      if (oldName && oldName.toLowerCase() !== currentUsername.toLowerCase()) {
+        const oldDocRef = doc(statusCollection, oldName.toLowerCase().replace(/\s+/g, '_'));
+        await deleteDoc(oldDocRef).catch(() => {});
+      }
+      const userDocRef = doc(statusCollection, currentUsername.toLowerCase().replace(/\s+/g, '_'));
+      await setDoc(userDocRef, {
+        username: currentUsername, color: currentUserColor, isOnline: isOnline, isTyping: isTyping, lastSeen: Date.now()
+      }, { merge: true });
+    } catch(e) { console.error("Presence sync blocked:", e); }
   }
 
   async function updateAiPresence(isTyping) {
-    const aiDocRef = doc(statusCollection, "ai_bot");
-    await setDoc(aiDocRef, {
-      username: "AI Bot", color: "#ff9f43", isOnline: true, isTyping: isTyping, lastSeen: Date.now()
-    }, { merge: true });
+    try {
+      const aiDocRef = doc(statusCollection, "ai_bot");
+      await setDoc(aiDocRef, {
+        username: "AI Bot", color: "#ff9f43", isOnline: true, isTyping: isTyping, lastSeen: Date.now()
+      }, { merge: true });
+    } catch(e) {}
   }
 
+  // Hardened UI Switcher: Overrides desktop styles using runtime style sheets properties
   function updateIdentityDisplays() {
     if (!nameModal) return;
-    if (currentUsername) {
-      if (currentUserDisplay) currentUserDisplay.textContent = `User: ${currentUsername}`;
-      if (mobileUserDisplay) mobileUserDisplay.textContent = `Profile: ${currentUsername}`;
-      nameModal.classList.add("hidden-modal");
-      updatePresence(true, false);
-      checkSecretAccess(); 
-    } else {
-      nameModal.classList.remove("hidden-modal");
+    try {
+      if (currentUsername) {
+        if (currentUserDisplay) currentUserDisplay.textContent = `User: ${currentUsername}`;
+        if (mobileUserDisplay) mobileUserDisplay.textContent = `Profile: ${currentUsername}`;
+        
+        // FORCE DISMISS OVERLAY (Bypasses CSS classes completely)
+        nameModal.style.setProperty("display", "none", "important");
+        
+        updatePresence(true, false);
+        checkSecretAccess(); 
+      } else {
+        // FORCE DISPLAY OVERLAY
+        nameModal.style.setProperty("display", "flex", "important");
+      }
+    } catch (err) {
+      console.error("UI Switcher failure container caught:", err);
+      nameModal.style.setProperty("display", "none", "important"); 
     }
   }
+  
+  // Trigger layout state evaluation immediately upon reading initial state values
   updateIdentityDisplays();
 
   window.addEventListener("beforeunload", () => updatePresence(false, false));
@@ -238,8 +251,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (changeNameBtn) {
     const openModal = () => {
-      usernameInput.value = currentUsername;
-      nameModal.classList.remove("hidden-modal");
+      if (usernameInput && nameModal) {
+        usernameInput.value = currentUsername;
+        nameModal.style.setProperty("display", "flex", "important");
+      }
     };
     changeNameBtn.addEventListener("click", openModal);
     changeNameBtn.addEventListener("touchend", (e) => { e.preventDefault(); openModal(); });
@@ -357,6 +372,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }, 1000);
 
+  // --- MAIN CHAT STREAM ---
   const qMessages = query(messagesCollection, orderBy("time", "asc"));
   onSnapshot(qMessages, (snapshot) => {
     if (!chatHistory) return;
@@ -446,20 +462,4 @@ document.addEventListener("DOMContentLoaded", () => {
     try {
       updateAiPresence(true);
       const response = await fetch("https://text.pollinations.ai/", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages: [{ role: "system", content: "You are a helpful, fast AI assistant inside a dev chat room." }, { role: "user", content: userPrompt }]
-        })
-      });
-      const replyText = await response.text();
-      await addDoc(messagesCollection, { sender: "AI Bot", senderColor: "#ff9f43", message: replyText ? replyText.trim() : "My processing space timed out. Try asking me again!", time: Date.now() });
-    } catch (err) {
-      console.error(err);
-    } finally {
-      updateAiPresence(false);
-    }
-  }
-
-  if (messageArea) {
-    messageArea.addEventListener("input", (e) => {
-    
+        method: "POST", headers
