@@ -285,3 +285,15 @@ body {
     #sendBtn { width: 24px; height: 24px; }
     #sendBtn svg { width: 12px; height: 12px; }
 }
+html,
+body,
+.app-layout,
+.chat-container {
+    height: 100dvh;
+}
+
+.chat-container {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
