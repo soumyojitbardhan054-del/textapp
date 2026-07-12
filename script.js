@@ -367,6 +367,8 @@ document.addEventListener("DOMContentLoaded", () => {
     chatHistory.scrollTo({
   top: chatHistory.scrollHeight,
   behavior: "smooth"
+window.visualViewport&&window.visualViewport.addEventListener("resize",()=>{setTimeout(()=>{const ch=document.getElementById("chatHistory");if(ch)ch.scrollTop=ch.scrollHeight;},100);});
+
 });
   });
 
