@@ -272,7 +272,14 @@ body {
     
     .typing-banner { padding: 4px 8px; font-size: 10px; }
     .chat-img { max-height: 130px; border-radius: 6px; }
-    .input-area { padding: 4px 6px; padding-bottom: calc(4px + env(safe-area-inset-bottom)); }
+    .input-area {
+    position: sticky;
+    bottom: 0;
+    z-index: 100;
+    background: var(--bg-side);
+    padding: 4px 6px;
+    padding-bottom: calc(4px + env(safe-area-inset-bottom));
+    }
     .action-bar { padding: 3px 8px; gap: 4px; border-radius: 16px; }
     #message { font-size: 12px; padding: 4px 0; }
     #sendBtn { width: 24px; height: 24px; }
