@@ -54,7 +54,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const messageArea = document.getElementById("message");
   const chatHistory = document.getElementById("chatHistory");
   const sendBtn = document.getElementById("sendBtn");
-  const imageInput = document.getElementById("imageInput");
+  const galleryInput = document.getElementById("galleryInput");
+const cameraInput = document.getElementById("cameraInput");
+const attachBtn = document.getElementById("attachBtn");
   const imagePreviewContainer = document.getElementById("imagePreviewContainer");
   const imagePreview = document.getElementById("imagePreview");
   const cancelImage = document.getElementById("cancelImage");
@@ -185,21 +187,38 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  if (imageInput) {
-    imageInput.addEventListener("change", async (e) => {
-      const file = e.target.files[0];
-      if (file && imagePreview && imagePreviewContainer) {
-        selectedImageBase64 = await compressImage(file);
-        imagePreview.src = selectedImageBase64;
-        imagePreviewContainer.classList.remove("hidden");
-      }
-    });
-  }
+  async function handleImage(e) {
+    const file = e.target.files[0];
+
+    if (!file) return;
+
+    selectedImageBase64 = await compressImage(file);
+
+    imagePreview.src = selectedImageBase64;
+    imagePreviewContainer.classList.remove("hidden");
+}
+
+galleryInput.addEventListener("change", handleImage);
+cameraInput.addEventListener("change", handleImage);
+  attachBtn.addEventListener("click", () => {
+
+    const useCamera = confirm(
+        "Press OK for Camera\nPress Cancel for Gallery"
+    );
+
+    if (useCamera) {
+        cameraInput.click();
+    } else {
+        galleryInput.click();
+    }
+
+});
 
   if (cancelImage) {
     cancelImage.addEventListener("click", () => {
       selectedImageBase64 = "";
-      if (imageInput) imageInput.value = "";
+      galleryInput.value = "";
+cameraInput.value = "";
       if (imagePreviewContainer) imagePreviewContainer.classList.add("hidden");
     });
   }
