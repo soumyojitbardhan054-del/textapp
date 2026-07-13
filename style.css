@@ -356,9 +356,7 @@ body {
 
 .modal {
     position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-    width: 100vw; 
-    height: 100dvh; /* FIX: Prevents modal bottom cutting off on phone screens */
-    background: rgba(7, 9, 13, 0.96);
+    width: 100vw; height: 100dvh; background: rgba(7, 9, 13, 0.96);
     display: flex; justify-content: center; align-items: center; z-index: 99999;
 }
 
@@ -423,36 +421,44 @@ body {
 
 @media (max-width: 767px) {
     .sidebar { display: none; }
-    /* FIX: Swapped 100vh for 100dvh to stay perfectly framed inside shifting mobile browsers */
+    
+    /* MODIFIED: Uses 100dvh to stay safely within dynamic mobile browser viewports */
     .app-layout { width: 100vw; height: 100dvh; max-width: 100%; } 
-    .chat-header { padding: 5px 8px; gap: 2px; }
+    
+    /* MODIFIED: Made layout items smaller/tighter for small mobile views */
+    .chat-header { padding: 4px 6px; gap: 2px; }
     .chat-header h1 { font-size: 13px; }
     #mobileUserDisplay { display: none; }
     .header-actions { gap: 3px; }
-    .secondary-btn, .danger-btn { padding: 4px 6px; font-size: 9px; border-radius: 4px; }
-     
+    .secondary-btn, .danger-btn { padding: 3px 5px; font-size: 9px; border-radius: 4px; }
+    
     #chatHistory {
-        padding: 8px 6px;
-        gap: 4px;
-        padding-bottom: 12px;
+        padding: 6px 4px;
+        gap: 3px;
+        padding-bottom: 8px;
     }
-    .message-wrapper { max-width: 88%; margin-top: 4px; }
+    .message-wrapper { max-width: 88%; margin-top: 3px; }
     .message-wrapper.consecutive { margin-top: -2px; }
-    .bubble { font-size: 12px; padding: 5px 8px; border-radius: 10px; }
-     
-    .typing-banner { padding: 4px 8px; font-size: 10px; }
-    .chat-img { max-height: 130px; border-radius: 6px; }
-     
+    
+    /* MODIFIED: Increased bubble text size slightly for clarity */
+    .bubble { font-size: 14px; padding: 6px 10px; border-radius: 10px; } 
+    
+    .typing-banner { padding: 4px 6px; font-size: 10px; }
+    .chat-img { max-height: 110px; border-radius: 6px; } /* Made images slightly shorter */
+    
     .input-area {
         position: static;
         flex-shrink: 0;
         background: var(--bg-side);
-        padding: 8px 6px;
-        padding-bottom: calc(8px + env(safe-area-inset-bottom));
+        padding: 5px 4px;
+        padding-bottom: calc(6px + env(safe-area-inset-bottom));
     }
-    .action-bar { padding: 3px 8px; gap: 4px; border-radius: 16px; }
-    #message { font-size: 12px; padding: 4px 0; }
-    #sendBtn { width: 24px; height: 24px; }
+    .action-bar { padding: 3px 6px; gap: 4px; border-radius: 16px; }
+    
+    /* MODIFIED: Kept the typing field text clear and large */
+    #message { font-size: 14px; padding: 4px 0; } 
+    
+    #sendBtn { width: 26px; height: 26px; }
     #sendBtn svg { width: 12px; height: 12px; }
     #scrollBottomBtn { bottom: 65px; right: 12px; width: 30px; height: 30px; font-size: 12px; }
 }
@@ -465,7 +471,7 @@ body {
     top: 0;
     left: 0;
     width: 100vw;
-    height: 100dvh; /* FIX: Prevents fullscreen image modal breaking when URL bar changes */
+    height: 100dvh; /* MODIFIED: Fixed viewport bug on mobile */
     background: rgba(7, 9, 13, 0.95);
     display: flex;
     flex-direction: column;
