@@ -36,10 +36,10 @@ let currentScale = 1;
 const themes = ["#1e2330", "#2c1a30", "#1a2e26", "#301a1a"];
 let currentThemeIndex = parseInt(localStorage.getItem("chat_theme_index")) || 0;
 
-// Dynamic Font Size Configuration
+// Dynamic Font Size Configuration (Mega Small & Mega Big Limits)
 let currentFontSize = parseInt(localStorage.getItem('chatFontSize')) || 22; 
-const minFontSize = 1;
-const maxFontSize = 100;
+const minFontSize = 8;   // Mega small (Microscopic mode)
+const maxFontSize = 46;  // Mega big (Absolute giant mode)
 
 let targetEndTimestamp = 0;
 let godIsActive = true;
@@ -255,7 +255,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  /* OPTIMIZED: Uses standard high-speed batch deletions instead of serial calls */
   async function purgeChatRoomLogs() {
     try {
       const querySnapshot = await getDocs(messagesCollection);
@@ -346,10 +345,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }, 1000);
 
-  /* OPTIMIZED: Event Delegation setup targets parent container dynamically */
   if (chatHistory) {
     chatHistory.addEventListener("click", async (e) => {
-      // 1. Single Message Deletion Handler
       if (e.target.classList.contains("delete-single-btn")) {
         const idToDelete = e.target.getAttribute("data-id");
         if (idToDelete && confirm("Delete this message?")) {
@@ -357,7 +354,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       }
       
-      // 2. Dynamic Image Lightbox Open Handler
       if (e.target.classList.contains("chat-img")) {
         if (zoomedImage && zoomModal) {
           zoomedImage.src = e.target.src;
@@ -508,7 +504,7 @@ document.addEventListener("DOMContentLoaded", () => {
             { role: "system", content: "You are a helpful, conversational, super fast AI assistant inside a developer chat room." },
             { role: "user", content: userPrompt }
           ]
-        })
+        }
       });
 
       const replyText = await response.text();
