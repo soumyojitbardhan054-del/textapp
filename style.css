@@ -160,7 +160,7 @@ body {
     flex-shrink: 0;
 }
 
-.chat-header h1 { font-size: 18px; margin: 0; }
+.chat-header h1 { font-size: 22px; margin: 0; }
 #mobileUserDisplay { margin: 2px 0 0 0; font-size: 11px; color: var(--text-muted); }
 
 .header-actions { display: flex; gap: 6px; flex-wrap: nowrap; }
