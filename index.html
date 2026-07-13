@@ -69,7 +69,12 @@
             </div>
             
             <div class="action-bar">
-                <label for="imageInput" class="file-label" title="Attach an Image">
+                <label for="cameraInput" class="file-label" title="Take a Photo">
+                    📷
+                </label>
+                <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display: none;">
+
+                <label for="imageInput" class="file-label" title="Choose from Gallery">
                     🖼️
                 </label>
                 <input type="file" id="imageInput" accept="image/*" style="display: none;">
@@ -82,6 +87,17 @@
             </div>
         </footer>
     </main>
+</div>
+
+<div id="zoomModal" class="zoom-modal hidden">
+    <span id="closeZoom" class="close-zoom">✕</span>
+    <div class="zoom-wrapper">
+        <img id="zoomedImage" src="" alt="Zoomed View">
+    </div>
+    <div class="zoom-controls">
+        <button id="zoomInBtn">➕ Zoom In</button>
+        <button id="zoomOutBtn">➖ Zoom Out</button>
+    </div>
 </div>
 
 <script type="module" src="script.js"></script>
