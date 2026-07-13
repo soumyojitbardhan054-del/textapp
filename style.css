@@ -39,7 +39,7 @@ body {
 }
 
 /* ========================================== */
-/* SIDEBAR                                    */
+/* SIDEBAR (DESKTOP)                          */
 /* ========================================== */
 .sidebar {
     width: 260px;
@@ -405,7 +405,7 @@ body {
 }
 
 /* ========================================== */
-/* RESPONSIVE DESIGN BREAKPOINTS              */
+/* RESPONSIVE BREAKPOINT: TABLET & DESKTOP   */
 /* ========================================== */
 @media (min-width: 768px) {
     body { background: radial-gradient(circle, #1a202c 0%, #0d1117 100%); }
@@ -419,6 +419,9 @@ body {
     #mobileUserDisplay { display: none; }
 }
 
+/* ========================================== */
+/* RESPONSIVE BREAKPOINT: PHONES (SMARTPHONES) */
+/* ========================================== */
 @media (max-width: 767px) {
     .sidebar { display: none; }
     
@@ -430,7 +433,7 @@ body {
         position: relative;
     } 
     
-    /* Small fixed height for top chat header */
+    /* Fixed small dimensions for mobile header */
     .chat-header { 
         padding: 0 8px;
         height: 44px;
@@ -446,11 +449,11 @@ body {
         border-radius: 4px;
     }
     
-    /* Forces the chat view to sit cleanly between header and input area */
+    /* Positions the message canvas perfectly without squeezing */
     #chatHistory {
         position: absolute;
         top: 44px;
-        bottom: calc(52px + env(safe-area-inset-bottom));
+        bottom: calc(58px + env(safe-area-inset-bottom));
         left: 0;
         right: 0;
         padding: 8px;
@@ -459,34 +462,34 @@ body {
         box-sizing: border-box;
     }
     
-    .message-wrapper { max-width: 80%; margin-top: 2px; }
+    .message-wrapper { max-width: 85%; margin-top: 2px; }
     .message-wrapper.consecutive { margin-top: -1px; }
     
-    /* LARGE WRITING INSIDE COMPACT CHAT BUBBLE */
+    /* VERY LARGE TEXT INSIDE BUBBLES */
     .bubble { 
-        font-size: 15px; 
-        padding: 6px 10px; 
+        font-size: 18px; 
+        padding: 8px 12px; 
         border-radius: 12px; 
-        line-height: 1.3;
+        line-height: 1.35;
     } 
     
     .typing-banner { 
         position: absolute;
-        bottom: calc(52px + env(safe-area-inset-bottom));
+        bottom: calc(58px + env(safe-area-inset-bottom));
         left: 0; right: 0;
         padding: 2px 8px; 
-        font-size: 10px; 
+        font-size: 11px; 
         z-index: 5;
     }
-    .chat-img { max-height: 100px; border-radius: 6px; } 
+    .chat-img { max-height: 120px; border-radius: 6px; } 
     
-    /* Fixed base container at bottom preventing field overflow */
+    /* Static footer anchor protecting viewport bounds */
     .input-area {
         position: absolute;
         bottom: 0;
         left: 0;
         right: 0;
-        height: calc(52px + env(safe-area-inset-bottom));
+        height: calc(58px + env(safe-area-inset-bottom));
         box-sizing: border-box;
         background: var(--bg-side);
         padding: 6px 8px;
@@ -494,33 +497,33 @@ body {
         width: 100% !important;
     }
     
-    /* Explicit width prevents inputs from sliding off-screen */
+    /* Flexible action row prevents overflow */
     .action-bar { 
         padding: 0 8px; 
         gap: 6px; 
         border-radius: 20px; 
-        height: 36px;
+        height: 42px;
         width: 100%;
         box-sizing: border-box;
         display: flex;
         align-items: center;
     }
     
-    /* LARGE WRITING INPUT FIELD */
+    /* VERY LARGE TEXT TYPING FIELD */
     #message { 
-        font-size: 15px; 
+        font-size: 18px; 
         padding: 0;
         width: 100%;
-        min-width: 0; /* Vital: Allows flex input item to shrink inside standard bounds */
+        min-width: 0; 
     } 
     
-    .file-label { font-size: 16px; min-width: 20px; text-align: center; }
+    .file-label { font-size: 18px; min-width: 22px; text-align: center; }
     
-    #sendBtn { width: 26px; height: 26px; }
-    #sendBtn svg { width: 12px; height: 12px; }
-    #scrollBottomBtn { bottom: 65px; right: 10px; width: 28px; height: 28px; font-size: 11px; }
+    #sendBtn { width: 30px; height: 30px; }
+    #sendBtn svg { width: 14px; height: 14px; }
+    #scrollBottomBtn { bottom: 70px; right: 10px; width: 28px; height: 28px; font-size: 11px; }
     
-    /* Modals configuration */
+    /* Modal controls custom fit for phones */
     .modal-content {
         padding: 15px;
         width: 220px;
