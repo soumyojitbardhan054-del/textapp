@@ -38,8 +38,8 @@ let currentThemeIndex = parseInt(localStorage.getItem("chat_theme_index")) || 0;
 
 // Dynamic Font Size Configuration
 let currentFontSize = parseInt(localStorage.getItem('chatFontSize')) || 22; 
-const minFontSize = 14;
-const maxFontSize = 36;
+const minFontSize = 1;
+const maxFontSize = 100;
 
 let targetEndTimestamp = 0;
 let godIsActive = true;
