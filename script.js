@@ -36,10 +36,10 @@ let currentScale = 1;
 const themes = ["#1e2330", "#2c1a30", "#1a2e26", "#301a1a"];
 let currentThemeIndex = parseInt(localStorage.getItem("chat_theme_index")) || 0;
 
-// Dynamic Font Size Configuration (Mega Small & Mega Big Limits)
+// Dynamic Font Size Configuration
 let currentFontSize = parseInt(localStorage.getItem('chatFontSize')) || 22; 
-const minFontSize = 8;   // Mega small (Microscopic mode)
-const maxFontSize = 46;  // Mega big (Absolute giant mode)
+const minFontSize = 8;   
+const maxFontSize = 46;  
 
 let targetEndTimestamp = 0;
 let godIsActive = true;
@@ -154,9 +154,11 @@ document.addEventListener("DOMContentLoaded", () => {
       if (currentUserDisplay) currentUserDisplay.textContent = `User: ${currentUsername}`;
       if (mobileUserDisplay) mobileUserDisplay.textContent = `Profile: ${currentUsername}`;
       nameModal.classList.add("hidden-modal");
+      nameModal.classList.add("hidden"); // Backup to catch all stylesheet variants
       updatePresence(true, false);
     } else {
       nameModal.classList.remove("hidden-modal");
+      nameModal.classList.remove("hidden");
     }
   }
   updateIdentityDisplays();
@@ -185,9 +187,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (saveNameBtn) {
     saveNameBtn.addEventListener("click", handleUserSetupSave);
-    saveNameBtn.addEventListener("touchend", (e) => {
-      e.preventDefault();
-      handleUserSetupSave();
+  }
+
+  // FIXED: Pressing Enter inside the Name Selection field now cleanly saves and unlocks the UI
+  if (usernameInput) {
+    usernameInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        handleUserSetupSave();
+      }
     });
   }
 
@@ -195,13 +203,13 @@ document.addEventListener("DOMContentLoaded", () => {
     const openModal = () => {
       usernameInput.value = currentUsername;
       nameModal.classList.remove("hidden-modal");
+      nameModal.classList.remove("hidden");
+      usernameInput.focus();
     };
     changeNameBtn.addEventListener("click", openModal);
-    changeNameBtn.addEventListener("touchend", (e) => {
-      e.preventDefault();
-      openModal();
-    });
   }
+
+  // --- End Name Selection UI Fix Block ---
 
   function compressImage(file) {
     return new Promise((resolve) => {
@@ -504,7 +512,7 @@ document.addEventListener("DOMContentLoaded", () => {
             { role: "system", content: "You are a helpful, conversational, super fast AI assistant inside a developer chat room." },
             { role: "user", content: userPrompt }
           ]
-        }
+        })
       });
 
       const replyText = await response.text();
