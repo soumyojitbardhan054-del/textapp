@@ -422,83 +422,117 @@ body {
 @media (max-width: 767px) {
     .sidebar { display: none; }
     
-    /* Strict dimensions to guarantee layout completely fits the dynamic phone screen */
     .app-layout { 
         width: 100vw; 
         height: 100dvh; 
         max-width: 100%; 
-        max-height: 100dvh; 
+        max-height: 100dvh;
+        position: relative;
     } 
     
-    /* Fix: Condensed UI elements dramatically to allow large font to breathe */
+    /* Small fixed height for top chat header */
     .chat-header { 
-        padding: 4px 8px;
-        height: 40px; 
+        padding: 0 8px;
+        height: 44px;
         box-sizing: border-box; 
     }
-    .chat-header h1 { font-size: 12px; }
+    .chat-header h1 { font-size: 13px; }
     #mobileUserDisplay { display: none; }
     
-    /* Make buttons tiny icons on phone screens so they don't break the layout */
     .header-actions { gap: 4px; }
     .secondary-btn, .danger-btn { 
-        padding: 3px 5px; 
+        padding: 4px 6px; 
         font-size: 10px; 
         border-radius: 4px;
     }
     
-    /* Maximize vertical view area for the messages */
+    /* Forces the chat view to sit cleanly between header and input area */
     #chatHistory {
-        padding: 6px 8px;
-        gap: 3px;
-        padding-bottom: 6px;
+        position: absolute;
+        top: 44px;
+        bottom: calc(52px + env(safe-area-inset-bottom));
+        left: 0;
+        right: 0;
+        padding: 8px;
+        gap: 6px;
+        width: 100%;
+        box-sizing: border-box;
     }
     
-    .message-wrapper { max-width: 85%; margin-top: 2px; }
+    .message-wrapper { max-width: 80%; margin-top: 2px; }
     .message-wrapper.consecutive { margin-top: -1px; }
     
-    /* LARGE READABLE TEXT + SMALL COMPACT BUBBLE */
+    /* LARGE WRITING INSIDE COMPACT CHAT BUBBLE */
     .bubble { 
         font-size: 15px; 
-        padding: 5px 8px; 
-        border-radius: 8px; 
-        line-height: 1.25;
+        padding: 6px 10px; 
+        border-radius: 12px; 
+        line-height: 1.3;
     } 
     
-    .typing-banner { padding: 2px 8px; font-size: 9px; }
-    .chat-img { max-height: 90px; border-radius: 4px; margin-bottom: 1px; } 
-    
-    /* Tight bottom bar setup */
-    .input-area {
-        position: static;
-        flex-shrink: 0;
-        background: var(--bg-side);
-        padding: 4px 6px;
-        padding-bottom: calc(4px + env(safe-area-inset-bottom));
+    .typing-banner { 
+        position: absolute;
+        bottom: calc(52px + env(safe-area-inset-bottom));
+        left: 0; right: 0;
+        padding: 2px 8px; 
+        font-size: 10px; 
+        z-index: 5;
     }
-    .action-bar { padding: 2px 8px; gap: 6px; border-radius: 12px; }
+    .chat-img { max-height: 100px; border-radius: 6px; } 
     
-    /* Crisp clear input field */
-    #message { font-size: 15px; padding: 2px 0; } 
-    .file-label { font-size: 14px; }
+    /* Fixed base container at bottom preventing field overflow */
+    .input-area {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: calc(52px + env(safe-area-inset-bottom));
+        box-sizing: border-box;
+        background: var(--bg-side);
+        padding: 6px 8px;
+        padding-bottom: calc(6px + env(safe-area-inset-bottom));
+        width: 100% !important;
+    }
     
-    #sendBtn { width: 22px; height: 22px; }
-    #sendBtn svg { width: 10px; height: 10px; }
-    #scrollBottomBtn { bottom: 50px; right: 10px; width: 26px; height: 26px; font-size: 10px; }
+    /* Explicit width prevents inputs from sliding off-screen */
+    .action-bar { 
+        padding: 0 8px; 
+        gap: 6px; 
+        border-radius: 20px; 
+        height: 36px;
+        width: 100%;
+        box-sizing: border-box;
+        display: flex;
+        align-items: center;
+    }
     
-    /* Make Identity Modals clean and tiny on mobile screens */
+    /* LARGE WRITING INPUT FIELD */
+    #message { 
+        font-size: 15px; 
+        padding: 0;
+        width: 100%;
+        min-width: 0; /* Vital: Allows flex input item to shrink inside standard bounds */
+    } 
+    
+    .file-label { font-size: 16px; min-width: 20px; text-align: center; }
+    
+    #sendBtn { width: 26px; height: 26px; }
+    #sendBtn svg { width: 12px; height: 12px; }
+    #scrollBottomBtn { bottom: 65px; right: 10px; width: 28px; height: 28px; font-size: 11px; }
+    
+    /* Modals configuration */
     .modal-content {
-        padding: 12px;
-        width: 210px;
+        padding: 15px;
+        width: 220px;
         border-radius: 8px;
     }
-    .modal-content h2 { font-size: 15px; margin-bottom: 2px; }
-    .modal-content p { font-size: 10px; margin-bottom: 8px; }
+    .modal-content h2 { font-size: 16px; }
+    .modal-content p { font-size: 11px; }
     .modal-content input { padding: 6px; font-size: 13px; }
-    .color-picker-label { margin: 6px 0 4px 0; font-size: 11px; }
+    .color-picker-label { margin: 6px 0; font-size: 11px; }
     .avatar-color-picker { gap: 6px; margin-bottom: 10px; }
-    .color-dot { width: 18px; height: 18px; }
-    .modal-content button { padding: 6px; font-size: 12px; }
+    .color-dot { width: 20px; height: 20px; }
+    .modal-content button { padding: 6px; font-size: 13px; }
 }
 
 /* ========================================== */
