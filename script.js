@@ -466,10 +466,14 @@ document.addEventListener("DOMContentLoaded", () => {
     try {
       updateAiPresence(true);
       
-      const response = await fetch("https://text.pollinations.ai/", {
+      const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": "Bearer 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"
+        },
         body: JSON.stringify({
+          model: "llama-3.3-70b-specdec", // You can change this to any supported Groq model like "llama3-8b-8192"
           messages: [
             { role: "system", content: "You are a helpful, conversational, super fast AI assistant inside a developer chat room." },
             { role: "user", content: userPrompt }
@@ -477,7 +481,12 @@ document.addEventListener("DOMContentLoaded", () => {
         })
       });
 
-      const replyText = await response.text();
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const replyText = data.choices?.[0]?.message?.content;
       
       await addDoc(messagesCollection, {
         sender: "AI Bot",
@@ -487,6 +496,12 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     } catch (err) {
       console.error("AI Fetch Failure:", err);
+      await addDoc(messagesCollection, {
+        sender: "AI Bot",
+        senderColor: "#ff9f43",
+        message: "❌ Failed to fetch reply from Groq. Check connection or API keys.",
+        time: Date.now()
+      });
     } finally {
       updateAiPresence(false);
     }
