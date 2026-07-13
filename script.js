@@ -36,10 +36,10 @@ let currentScale = 1;
 const themes = ["#1e2330", "#2c1a30", "#1a2e26", "#301a1a"];
 let currentThemeIndex = parseInt(localStorage.getItem("chat_theme_index")) || 0;
 
-// Dynamic Font Size Configuration
+// Dynamic Font Size Configuration (Mega Small & Mega Big Limits)
 let currentFontSize = parseInt(localStorage.getItem('chatFontSize')) || 22; 
-const minFontSize = 8;   
-const maxFontSize = 46;  
+const minFontSize = 8;   // Mega small (Microscopic mode)
+const maxFontSize = 46;  // Mega big (Absolute giant mode)
 
 let targetEndTimestamp = 0;
 let godIsActive = true;
@@ -104,6 +104,11 @@ document.addEventListener("DOMContentLoaded", () => {
   const onlineUsersList = document.getElementById("onlineUsersList");
   const typingIndicator = document.getElementById("typingIndicator");
 
+  // FIXED: Force the lightbox overlay to hidden on boot up. This drops any unhandled blocking on desktop views.
+  if (zoomModal) {
+    zoomModal.classList.add("hidden");
+  }
+
   if (chatContainer) chatContainer.style.backgroundColor = themes[currentThemeIndex];
   if (messageArea) messageArea.value = localStorage.getItem("chat_draft") || "";
 
@@ -154,11 +159,9 @@ document.addEventListener("DOMContentLoaded", () => {
       if (currentUserDisplay) currentUserDisplay.textContent = `User: ${currentUsername}`;
       if (mobileUserDisplay) mobileUserDisplay.textContent = `Profile: ${currentUsername}`;
       nameModal.classList.add("hidden-modal");
-      nameModal.classList.add("hidden"); // Backup to catch all stylesheet variants
       updatePresence(true, false);
     } else {
       nameModal.classList.remove("hidden-modal");
-      nameModal.classList.remove("hidden");
     }
   }
   updateIdentityDisplays();
@@ -187,15 +190,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (saveNameBtn) {
     saveNameBtn.addEventListener("click", handleUserSetupSave);
-  }
-
-  // FIXED: Pressing Enter inside the Name Selection field now cleanly saves and unlocks the UI
-  if (usernameInput) {
-    usernameInput.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        handleUserSetupSave();
-      }
+    saveNameBtn.addEventListener("touchend", (e) => {
+      e.preventDefault();
+      handleUserSetupSave();
     });
   }
 
@@ -203,13 +200,13 @@ document.addEventListener("DOMContentLoaded", () => {
     const openModal = () => {
       usernameInput.value = currentUsername;
       nameModal.classList.remove("hidden-modal");
-      nameModal.classList.remove("hidden");
-      usernameInput.focus();
     };
     changeNameBtn.addEventListener("click", openModal);
+    changeNameBtn.addEventListener("touchend", (e) => {
+      e.preventDefault();
+      openModal();
+    });
   }
-
-  // --- End Name Selection UI Fix Block ---
 
   function compressImage(file) {
     return new Promise((resolve) => {
