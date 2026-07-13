@@ -58,7 +58,7 @@ document.addEventListener("DOMContentLoaded", () => {
   
   // Image Selection Elements
   const imageInput = document.getElementById("imageInput");
-  const cameraInput = document.getElementById("cameraInput");
+  const cameraInput = document.getElementById("cameraInput"); // New Camera Element
   const imagePreviewContainer = document.getElementById("imagePreviewContainer");
   const imagePreview = document.getElementById("imagePreview");
   const cancelImage = document.getElementById("cancelImage");
@@ -206,12 +206,14 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  // Gallery Input Change
   if (imageInput) {
     imageInput.addEventListener("change", async (e) => {
       await processSelectedFile(e.target.files[0]);
     });
   }
 
+  // Camera Input Capture Change
   if (cameraInput) {
     cameraInput.addEventListener("change", async (e) => {
       await processSelectedFile(e.target.files[0]);
@@ -394,7 +396,7 @@ document.addEventListener("DOMContentLoaded", () => {
       img.addEventListener("click", (e) => {
         if (zoomedImage && zoomModal) {
           zoomedImage.src = e.target.src;
-          currentScale = 1; 
+          currentScale = 1; // Reset scale back to normal on fresh open
           zoomedImage.style.transform = `scale(${currentScale})`;
           zoomModal.classList.remove("hidden");
         }
@@ -460,21 +462,14 @@ document.addEventListener("DOMContentLoaded", () => {
     combineFooterDisplays();
   });
 
-  // ==========================================
-  // AI Integration via Groq API
-  // ==========================================
   async function fetchAiReply(userPrompt) {
     try {
       updateAiPresence(true);
       
-      const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      const response = await fetch("https://text.pollinations.ai/", {
         method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-          "Authorization": "Bearer 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"
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "llama-3.3-70b-specdec", 
           messages: [
             { role: "system", content: "You are a helpful, conversational, super fast AI assistant inside a developer chat room." },
             { role: "user", content: userPrompt }
@@ -482,12 +477,7 @@ document.addEventListener("DOMContentLoaded", () => {
         })
       });
 
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
-      }
-
-      const data = await response.json();
-      const replyText = data.choices?.[0]?.message?.content;
+      const replyText = await response.text();
       
       await addDoc(messagesCollection, {
         sender: "AI Bot",
@@ -497,12 +487,6 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     } catch (err) {
       console.error("AI Fetch Failure:", err);
-      await addDoc(messagesCollection, {
-        sender: "AI Bot",
-        senderColor: "#ff9f43",
-        message: "❌ Failed to fetch reply from AI. Check connection or API keys.",
-        time: Date.now()
-      });
     } finally {
       updateAiPresence(false);
     }
@@ -565,6 +549,7 @@ document.addEventListener("DOMContentLoaded", () => {
         time: Date.now()
       });
 
+      // Clear layout and reset references after send completes
       messageArea.value = "";
       localStorage.removeItem("chat_draft");
       selectedImageBase64 = "";
@@ -608,7 +593,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Lightbox Control Buttons
+  // Lightbox Control Buttons Event Handlers
   if (zoomInBtn && zoomedImage) {
     zoomInBtn.addEventListener("click", () => {
       currentScale += 0.25;
@@ -618,7 +603,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (zoomOutBtn && zoomedImage) {
     zoomOutBtn.addEventListener("click", () => {
-      if (currentScale > 0.5) { 
+      if (currentScale > 0.5) { // Prevent image from turning upside down
         currentScale -= 0.25;
         zoomedImage.style.transform = `scale(${currentScale})`;
       }
@@ -631,7 +616,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Mobile scroll helper
+  // Mobile scroll helper button
   const scrollBtn = document.createElement("button");
   scrollBtn.id = "scrollBottomBtn";
   scrollBtn.type = "button";
