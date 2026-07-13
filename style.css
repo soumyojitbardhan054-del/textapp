@@ -422,7 +422,7 @@ body {
 @media (max-width: 767px) {
     .sidebar { display: none; }
     
-    /* Strict dimensions to guarantee it matches the viewport */
+    /* Strict dimensions to guarantee layout completely fits the dynamic phone screen */
     .app-layout { 
         width: 100vw; 
         height: 100dvh; 
@@ -430,30 +430,34 @@ body {
         max-height: 100dvh; 
     } 
     
-    /* Super compact header */
+    /* Fix: Condensed UI elements dramatically to allow large font to breathe */
     .chat-header { 
-        padding: 3px 6px; 
-        gap: 2px; 
-        height: 34px; 
+        padding: 4px 8px;
+        height: 40px; 
         box-sizing: border-box; 
     }
     .chat-header h1 { font-size: 12px; }
     #mobileUserDisplay { display: none; }
-    .header-actions { gap: 3px; }
-    .secondary-btn, .danger-btn { padding: 2px 4px; font-size: 9px; border-radius: 4px; }
     
-    /* Tighter message stream padding */
+    /* Make buttons tiny icons on phone screens so they don't break the layout */
+    .header-actions { gap: 4px; }
+    .secondary-btn, .danger-btn { 
+        padding: 3px 5px; 
+        font-size: 10px; 
+        border-radius: 4px;
+    }
+    
+    /* Maximize vertical view area for the messages */
     #chatHistory {
-        padding: 4px 6px;
-        gap: 2px;
+        padding: 6px 8px;
+        gap: 3px;
         padding-bottom: 6px;
     }
     
-    /* Make message bubbles wide, clean, and use large readable text */
-    .message-wrapper { max-width: 90%; margin-top: 2px; }
+    .message-wrapper { max-width: 85%; margin-top: 2px; }
     .message-wrapper.consecutive { margin-top: -1px; }
     
-    /* LARGE TEXT + COMPACT BUBBLE */
+    /* LARGE READABLE TEXT + SMALL COMPACT BUBBLE */
     .bubble { 
         font-size: 15px; 
         padding: 5px 8px; 
@@ -461,26 +465,40 @@ body {
         line-height: 1.25;
     } 
     
-    .typing-banner { padding: 2px 6px; font-size: 9px; }
-    .chat-img { max-height: 95px; border-radius: 4px; margin-bottom: 1px; } 
+    .typing-banner { padding: 2px 8px; font-size: 9px; }
+    .chat-img { max-height: 90px; border-radius: 4px; margin-bottom: 1px; } 
     
-    /* Ultra-compact control input section */
+    /* Tight bottom bar setup */
     .input-area {
         position: static;
         flex-shrink: 0;
         background: var(--bg-side);
-        padding: 4px 4px;
+        padding: 4px 6px;
         padding-bottom: calc(4px + env(safe-area-inset-bottom));
     }
-    .action-bar { padding: 2px 6px; gap: 4px; border-radius: 12px; }
+    .action-bar { padding: 2px 8px; gap: 6px; border-radius: 12px; }
     
-    /* Keep typing field text matching the bubbles */
+    /* Crisp clear input field */
     #message { font-size: 15px; padding: 2px 0; } 
-    .file-label { font-size: 15px; }
+    .file-label { font-size: 14px; }
     
     #sendBtn { width: 22px; height: 22px; }
     #sendBtn svg { width: 10px; height: 10px; }
     #scrollBottomBtn { bottom: 50px; right: 10px; width: 26px; height: 26px; font-size: 10px; }
+    
+    /* Make Identity Modals clean and tiny on mobile screens */
+    .modal-content {
+        padding: 12px;
+        width: 210px;
+        border-radius: 8px;
+    }
+    .modal-content h2 { font-size: 15px; margin-bottom: 2px; }
+    .modal-content p { font-size: 10px; margin-bottom: 8px; }
+    .modal-content input { padding: 6px; font-size: 13px; }
+    .color-picker-label { margin: 6px 0 4px 0; font-size: 11px; }
+    .avatar-color-picker { gap: 6px; margin-bottom: 10px; }
+    .color-dot { width: 18px; height: 18px; }
+    .modal-content button { padding: 6px; font-size: 12px; }
 }
 
 /* ========================================== */
