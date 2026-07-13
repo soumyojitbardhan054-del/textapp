@@ -10,6 +10,9 @@
     --text-muted: #8b94a6;
 }
 
+/* ========================================== */
+/* CORE BASE STRUCTURE (STRICT WINDOW BOUNDS) */
+/* ========================================== */
 html, body {
     height: 100%;
     width: 100%;
@@ -50,6 +53,7 @@ body {
 .sidebar-header { 
     padding: 15px; 
     border-bottom: 1px solid #2b313f; 
+    flex-shrink: 0;
 }
 .sidebar-header h3 { 
     margin: 0; 
@@ -74,6 +78,7 @@ body {
     align-items: center;
     font-weight: 500;
     font-size: 13px;
+    flex-shrink: 0;
 }
 .status-dot { 
     height: 8px; 
@@ -87,6 +92,7 @@ body {
     display: flex;
     flex-direction: column;
     gap: 8px;
+    min-height: 0;
 }
 .active-users-panel h4 { 
     margin: 0; 
@@ -126,6 +132,8 @@ body {
     color: var(--text-muted); 
     line-height: 1.4; 
     margin-top: auto; 
+    flex-shrink: 0;
+    padding-top: 10px;
 }
 
 /* ========================================== */
@@ -139,7 +147,7 @@ body {
     z-index: 1;
     overflow: hidden;
     height: 100%;
-    min-height: 0;
+    min-height: 0; /* Critical: Stops content layout blowout */
 }
 
 .chat-header {
@@ -188,7 +196,7 @@ body {
     display: flex;
     flex-direction: column;
     gap: 10px;
-    min-height: 0;
+    min-height: 0; /* Forces internal scrolling instead of parent expansion */
     -webkit-overflow-scrolling: touch;
 }
 
@@ -273,7 +281,7 @@ body {
 /* INPUT AREA & PREVIEWS                      */
 /* ========================================== */
 .input-area { 
-    flex-shrink: 0; 
+    flex-shrink: 0; /* Guaranteed containment from layout squishing */
     padding: 15px 20px; 
     background: var(--bg-side); 
     border-top: 1px solid #2b313f; 
@@ -400,6 +408,7 @@ body {
 /* RESPONSIVE DESIGN BREAKPOINTS              */
 /* ========================================== */
 @media (min-width: 768px) {
+    body { background: radial-gradient(circle, #1a202c 0%, #0d1117 100%); }
     .app-layout { 
         max-width: 1100px; 
         height: 85vh; 
@@ -407,13 +416,12 @@ body {
         box-shadow: 0 15px 50px rgba(0,0,0,0.6); 
         border: 1px solid #2b313f; 
     }
-    body { background: radial-gradient(circle, #1a202c 0%, #0d1117 100%); }
     #mobileUserDisplay { display: none; }
 }
 
 @media (max-width: 767px) {
     .sidebar { display: none; }
-    .app-layout { width: 100vw; height: 100vh; }
+    .app-layout { width: 100vw; height: 100vh; max-width: 100%; }
     .chat-header { padding: 5px 8px; gap: 2px; }
     .chat-header h1 { font-size: 13px; }
     #mobileUserDisplay { display: none; }
