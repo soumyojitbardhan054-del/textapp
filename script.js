@@ -9,7 +9,8 @@ import {
   query,
   orderBy,
   getDocs,
-  deleteDoc
+  deleteDoc,
+  writeBatch
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -30,7 +31,7 @@ let currentUsername = localStorage.getItem("chat_username") || "";
 let currentUserColor = localStorage.getItem("chat_user_color") || "#00d2d3";
 let selectedImageBase64 = "";
 let typingTimeout = null;
-let currentScale = 1; // Tracks current zoom level
+let currentScale = 1;
 
 const themes = ["#1e2330", "#2c1a30", "#1a2e26", "#301a1a"];
 let currentThemeIndex = parseInt(localStorage.getItem("chat_theme_index")) || 0;
@@ -40,7 +41,6 @@ let godIsActive = true;
 let currentAnswer = null;
 let warningTwoMinSent = false;
 
-// Global Layout Track Memory Management
 let globalTimerDisplayString = "";
 let globalTypingDisplayString = "";
 
@@ -56,14 +56,12 @@ document.addEventListener("DOMContentLoaded", () => {
   const chatHistory = document.getElementById("chatHistory");
   const sendBtn = document.getElementById("sendBtn");
   
-  // Image Selection Elements
   const imageInput = document.getElementById("imageInput");
-  const cameraInput = document.getElementById("cameraInput"); // New Camera Element
+  const cameraInput = document.getElementById("cameraInput");
   const imagePreviewContainer = document.getElementById("imagePreviewContainer");
   const imagePreview = document.getElementById("imagePreview");
   const cancelImage = document.getElementById("cancelImage");
   
-  // Zoom Elements
   const zoomModal = document.getElementById("zoomModal");
   const zoomedImage = document.getElementById("zoomedImage");
   const closeZoom = document.getElementById("closeZoom");
@@ -105,7 +103,7 @@ document.addEventListener("DOMContentLoaded", () => {
       isOnline: isOnline,
       isTyping: isTyping,
       lastSeen: Date.now()
-    }, { merge: true });
+    }, { merge: true }).catch(err => console.error("Presence update failed:", err));
   }
 
   async function updateAiPresence(isTyping) {
@@ -116,7 +114,7 @@ document.addEventListener("DOMContentLoaded", () => {
       isOnline: true,
       isTyping: isTyping,
       lastSeen: Date.now()
-    }, { merge: true });
+    }, { merge: true }).catch(err => console.error("AI presence update failed:", err));
   }
 
   function updateIdentityDisplays() {
@@ -197,7 +195,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Unified File Processor for both Camera and Gallery
   async function processSelectedFile(file) {
     if (file && imagePreview && imagePreviewContainer) {
       selectedImageBase64 = await compressImage(file);
@@ -206,17 +203,15 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // Gallery Input Change
   if (imageInput) {
     imageInput.addEventListener("change", async (e) => {
-      await processSelectedFile(e.target.files[0]);
+      if (e.target.files.length > 0) await processSelectedFile(e.target.files[0]);
     });
   }
 
-  // Camera Input Capture Change
   if (cameraInput) {
     cameraInput.addEventListener("change", async (e) => {
-      await processSelectedFile(e.target.files[0]);
+      if (e.target.files.length > 0) await processSelectedFile(e.target.files[0]);
     });
   }
 
@@ -229,10 +224,19 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  /* OPTIMIZED: Uses standard high-speed batch deletions instead of serial calls */
   async function purgeChatRoomLogs() {
-    const querySnapshot = await getDocs(messagesCollection);
-    for (const docSnapshot of querySnapshot.docs) {
-      await deleteDoc(docSnapshot.ref);
+    try {
+      const querySnapshot = await getDocs(messagesCollection);
+      if (querySnapshot.empty) return;
+      
+      const batch = writeBatch(db);
+      querySnapshot.docs.forEach((docSnapshot) => {
+        batch.delete(docSnapshot.ref);
+      });
+      await batch.commit();
+    } catch (err) {
+      console.error("Batch room clearance failure:", err);
     }
   }
 
@@ -242,7 +246,7 @@ document.addEventListener("DOMContentLoaded", () => {
       senderColor: "#ff4757",
       message: textPayload,
       time: Date.now()
-    });
+    }).catch(err => console.error("God automation dispatch error:", err));
   }
 
   function makeHardQuestion() {
@@ -273,7 +277,7 @@ document.addEventListener("DOMContentLoaded", () => {
       targetEndTimestamp = docSnap.data().endTime;
     } else {
       const freshEnd = Date.now() + 600000; 
-      await setDoc(doc(db, "status", "timer_state"), { endTime: freshEnd });
+      await setDoc(doc(db, "status", "timer_state"), { endTime: freshEnd }).catch(e => console.error(e));
     }
   });
 
@@ -307,9 +311,32 @@ document.addEventListener("DOMContentLoaded", () => {
       warningTwoMinSent = false;
       currentAnswer = null;
       
-      await setDoc(doc(db, "status", "timer_state"), { endTime: nextEnd });
+      await setDoc(doc(db, "status", "timer_state"), { endTime: nextEnd }).catch(e => console.error(e));
     }
   }, 1000);
+
+  /* OPTIMIZED: Event Delegation setup targets parent container dynamically */
+  if (chatHistory) {
+    chatHistory.addEventListener("click", async (e) => {
+      // 1. Single Message Deletion Handler
+      if (e.target.classList.contains("delete-single-btn")) {
+        const idToDelete = e.target.getAttribute("data-id");
+        if (idToDelete && confirm("Delete this message?")) {
+          await deleteDoc(doc(db, "messages", idToDelete)).catch(err => console.error(err));
+        }
+      }
+      
+      // 2. Dynamic Image Lightbox Open Handler
+      if (e.target.classList.contains("chat-img")) {
+        if (zoomedImage && zoomModal) {
+          zoomedImage.src = e.target.src;
+          currentScale = 1;
+          zoomedImage.style.transform = `scale(${currentScale})`;
+          zoomModal.classList.remove("hidden");
+        }
+      }
+    });
+  }
 
   const qMessages = query(messagesCollection, orderBy("time", "asc"));
   onSnapshot(qMessages, (snapshot) => {
@@ -380,40 +407,16 @@ document.addEventListener("DOMContentLoaded", () => {
       chatHistory.appendChild(msgElement);
     });
 
-    // Wire up Delete Message Buttons
-    document.querySelectorAll(".delete-single-btn").forEach(btn => {
-      btn.addEventListener("click", async (e) => {
-        const idToDelete = e.target.getAttribute("data-id");
-        if (confirm("Delete this message?")) {
-          await deleteDoc(doc(db, "messages", idToDelete));
-        }
-      });
-    });
-
-    // Wire up Lightbox Zoom on Chat Images
-    document.querySelectorAll(".chat-img").forEach(img => {
-      img.style.cursor = "zoom-in";
-      img.addEventListener("click", (e) => {
-        if (zoomedImage && zoomModal) {
-          zoomedImage.src = e.target.src;
-          currentScale = 1; // Reset scale back to normal on fresh open
-          zoomedImage.style.transform = `scale(${currentScale})`;
-          zoomModal.classList.remove("hidden");
-        }
-      });
-    });
-
     chatHistory.scrollTo({
       top: chatHistory.scrollHeight,
       behavior: "smooth"
     });
-    
-    window.visualViewport?.addEventListener("resize",()=>{
-       setTimeout(()=>{
-         const ch=document.getElementById("chatHistory");
-         if(ch) ch.scrollTop=ch.scrollHeight;
-       },100);
-    });
+  });
+
+  window.visualViewport?.addEventListener("resize", () => {
+     setTimeout(() => {
+       if (chatHistory) chatHistory.scrollTop = chatHistory.scrollHeight;
+     }, 100);
   });
 
   onSnapshot(statusCollection, (snapshot) => {
@@ -505,6 +508,7 @@ document.addEventListener("DOMContentLoaded", () => {
     
     messageArea.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
+        e.preventDefault(); // Prevents line breaks on submission keypress
         sendBtn.click();
       }
     });
@@ -547,9 +551,8 @@ document.addEventListener("DOMContentLoaded", () => {
         message: text,
         image: selectedImageBase64,
         time: Date.now()
-      });
+      }).catch(err => console.error("Message send failure:", err));
 
-      // Clear layout and reset references after send completes
       messageArea.value = "";
       localStorage.removeItem("chat_draft");
       selectedImageBase64 = "";
@@ -593,7 +596,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Lightbox Control Buttons Event Handlers
   if (zoomInBtn && zoomedImage) {
     zoomInBtn.addEventListener("click", () => {
       currentScale += 0.25;
@@ -603,7 +605,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (zoomOutBtn && zoomedImage) {
     zoomOutBtn.addEventListener("click", () => {
-      if (currentScale > 0.5) { // Prevent image from turning upside down
+      if (currentScale > 0.5) {
         currentScale -= 0.25;
         zoomedImage.style.transform = `scale(${currentScale})`;
       }
@@ -616,7 +618,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Mobile scroll helper button
   const scrollBtn = document.createElement("button");
   scrollBtn.id = "scrollBottomBtn";
   scrollBtn.type = "button";
