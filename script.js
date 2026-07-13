@@ -36,6 +36,11 @@ let currentScale = 1;
 const themes = ["#1e2330", "#2c1a30", "#1a2e26", "#301a1a"];
 let currentThemeIndex = parseInt(localStorage.getItem("chat_theme_index")) || 0;
 
+// Dynamic Font Size Configuration
+let currentFontSize = parseInt(localStorage.getItem('chatFontSize')) || 22; 
+const minFontSize = 14;
+const maxFontSize = 36;
+
 let targetEndTimestamp = 0;
 let godIsActive = true;
 let currentAnswer = null;
@@ -44,7 +49,28 @@ let warningTwoMinSent = false;
 let globalTimerDisplayString = "";
 let globalTypingDisplayString = "";
 
+// Helper function to dynamically update the font size across the chat
+function applyChatFontSize(size) {
+  let styleEl = document.getElementById('dynamic-font-style');
+  if (!styleEl) {
+    styleEl = document.createElement('style');
+    styleEl.id = 'dynamic-font-style';
+    document.head.appendChild(styleEl);
+  }
+  
+  styleEl.innerHTML = `
+    .bubble, #message { 
+        font-size: ${size}px !important; 
+    }
+  `;
+  
+  localStorage.setItem('chatFontSize', size);
+}
+
 document.addEventListener("DOMContentLoaded", () => {
+  // Apply the saved or default font size immediately on load
+  applyChatFontSize(currentFontSize);
+
   const nameModal = document.getElementById("nameModal");
   const usernameInput = document.getElementById("usernameInput");
   const saveNameBtn = document.getElementById("saveNameBtn");
@@ -70,6 +96,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const themeBtn = document.getElementById("themeBtn");
   const clearChatBtn = document.getElementById("clearChatBtn");
+  
+  // Font Size Buttons
+  const incFontBtn = document.getElementById("incFontBtn");
+  const decFontBtn = document.getElementById("decFontBtn");
+
   const onlineUsersList = document.getElementById("onlineUsersList");
   const typingIndicator = document.getElementById("typingIndicator");
 
@@ -508,7 +539,7 @@ document.addEventListener("DOMContentLoaded", () => {
     
     messageArea.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
-        e.preventDefault(); // Prevents line breaks on submission keypress
+        e.preventDefault(); 
         sendBtn.click();
       }
     });
@@ -580,6 +611,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  // --- Theme & Font Settings Events ---
   if (themeBtn && chatContainer) {
     themeBtn.addEventListener("click", () => {
       currentThemeIndex = (currentThemeIndex + 1) % themes.length;
@@ -587,6 +619,23 @@ document.addEventListener("DOMContentLoaded", () => {
       chatContainer.style.backgroundColor = themes[currentThemeIndex];
     });
   }
+
+  if (incFontBtn && decFontBtn) {
+    incFontBtn.addEventListener("click", () => {
+      if (currentFontSize < maxFontSize) {
+        currentFontSize += 2;
+        applyChatFontSize(currentFontSize);
+      }
+    });
+    
+    decFontBtn.addEventListener("click", () => {
+      if (currentFontSize > minFontSize) {
+        currentFontSize -= 2;
+        applyChatFontSize(currentFontSize);
+      }
+    });
+  }
+  // ------------------------------------
 
   if (clearChatBtn) {
     clearChatBtn.addEventListener("click", async () => {
