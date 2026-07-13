@@ -160,10 +160,10 @@ body {
     flex-shrink: 0;
 }
 
-.chat-header h1 { font-size: 18px; margin: 0; }
+.chat-header h1 { font-size: 18px; margin: 0; display: flex; align-items: center; gap: 8px; }
 #mobileUserDisplay { margin: 2px 0 0 0; font-size: 11px; color: var(--text-muted); }
 
-.header-actions { display: flex; gap: 6px; flex-wrap: nowrap; }
+.header-actions { display: flex; gap: 6px; flex-wrap: nowrap; align-items: center; }
 
 .secondary-btn {
     background: #3d465c; 
@@ -186,6 +186,21 @@ body {
     font-weight: bold; 
     font-size: 12px; 
     transition: 0.2s;
+}
+
+/* Dedicated Countdown Element Styling */
+.countdown-btn {
+    background: #ff9f43;
+    color: #111;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-weight: bold;
+    font-size: 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
 }
 
 #chatHistory {
@@ -433,14 +448,24 @@ body {
         position: relative;
     } 
     
-    /* Small layout boundary for phone header */
+    /* Small layout boundary for mobile header area */
     .chat-header { 
         padding: 0 8px;
-        height: 44px;
+        height: 48px;
         box-sizing: border-box; 
     }
-    .chat-header h1 { font-size: 13px; }
-    #mobileUserDisplay { display: none; }
+    .chat-header h1 { font-size: 14px; }
+    
+    /* Shows active connection status cleanly in header */
+    #mobileUserDisplay { 
+        display: inline-block; 
+        width: 8px;
+        height: 8px;
+        background: #10ac84;
+        border-radius: 50%;
+        margin-left: 4px;
+        text-indent: -9999px; /* Hides text, leaves active status dot visible */
+    }
     
     .header-actions { gap: 4px; }
     .secondary-btn, .danger-btn { 
@@ -449,15 +474,22 @@ body {
         border-radius: 4px;
     }
     
-    /* Locks the chat canvas space securely between elements */
+    /* Countdown Button adaptation inside mobile list container */
+    .countdown-btn {
+        padding: 4px 6px;
+        font-size: 10px;
+        border-radius: 4px;
+    }
+    
+    /* CHATBOX EXPANSION - Maximum expanded vertical viewing window layout */
     #chatHistory {
         position: absolute;
-        top: 44px;
-        bottom: calc(64px + env(safe-area-inset-bottom));
+        top: 48px;
+        bottom: calc(56px + env(safe-area-inset-bottom));
         left: 0;
         right: 0;
-        padding: 8px;
-        gap: 6px;
+        padding: 10px;
+        gap: 8px;
         width: 100%;
         box-sizing: border-box;
     }
@@ -465,7 +497,7 @@ body {
     .message-wrapper { max-width: 85%; margin-top: 2px; }
     .message-wrapper.consecutive { margin-top: -1px; }
     
-    /* CHAT BUBBLES - EXTRA LARGE FONTS */
+    /* BUBBLE EXTRA LARGE TEXT SIZE */
     .bubble { 
         font-size: 22px; 
         padding: 10px 14px; 
@@ -475,41 +507,40 @@ body {
     
     .typing-banner { 
         position: absolute;
-        bottom: calc(64px + env(safe-area-inset-bottom));
+        bottom: calc(56px + env(safe-area-inset-bottom));
         left: 0; right: 0;
         padding: 2px 8px; 
         font-size: 11px; 
         z-index: 5;
     }
-    .chat-img { max-height: 120px; border-radius: 6px; } 
+    .chat-img { max-height: 140px; border-radius: 6px; } 
     
-    /* Anchored bottom control layout bar */
+    /* Optimized low profile keyboard footer input area */
     .input-area {
         position: absolute;
         bottom: 0;
         left: 0;
         right: 0;
-        height: calc(64px + env(safe-area-inset-bottom));
+        height: calc(56px + env(safe-area-inset-bottom));
         box-sizing: border-box;
         background: var(--bg-side);
-        padding: 8px 8px;
-        padding-bottom: calc(8px + env(safe-area-inset-bottom));
+        padding: 6px 8px;
+        padding-bottom: calc(6px + env(safe-area-inset-bottom));
         width: 100% !important;
     }
     
-    /* Expanded action bar height to complement bigger writing layout */
     .action-bar { 
         padding: 0 8px; 
         gap: 6px; 
         border-radius: 20px; 
-        height: 48px;
+        height: 44px;
         width: 100%;
         box-sizing: border-box;
         display: flex;
         align-items: center;
     }
     
-    /* TYPING FIELDS - EXTRA LARGE FONTS */
+    /* INPUT TYPING FIELD EXTRA LARGE TEXT SIZE */
     #message { 
         font-size: 22px; 
         padding: 0;
@@ -519,11 +550,11 @@ body {
     
     .file-label { font-size: 20px; min-width: 24px; text-align: center; }
     
-    #sendBtn { width: 34px; height: 34px; }
-    #sendBtn svg { width: 16px; height: 16px; }
-    #scrollBottomBtn { bottom: 76px; right: 10px; width: 28px; height: 28px; font-size: 11px; }
+    #sendBtn { width: 32px; height: 32px; }
+    #sendBtn svg { width: 14px; height: 14px; }
+    #scrollBottomBtn { bottom: 68px; right: 10px; width: 28px; height: 28px; font-size: 11px; }
     
-    /* Identity setup modal customization */
+    /* Modal content configurations */
     .modal-content {
         padding: 15px;
         width: 220px;
