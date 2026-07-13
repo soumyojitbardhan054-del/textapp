@@ -433,7 +433,7 @@ body {
         position: relative;
     } 
     
-    /* Small layout boundary for phone header */
+    /* Fixed small dimensions for mobile header */
     .chat-header { 
         padding: 0 8px;
         height: 44px;
@@ -449,11 +449,11 @@ body {
         border-radius: 4px;
     }
     
-    /* Locks the chat canvas space securely between elements */
+    /* Positions the message canvas perfectly without squeezing */
     #chatHistory {
         position: absolute;
         top: 44px;
-        bottom: calc(64px + env(safe-area-inset-bottom));
+        bottom: calc(58px + env(safe-area-inset-bottom));
         left: 0;
         right: 0;
         padding: 8px;
@@ -465,17 +465,17 @@ body {
     .message-wrapper { max-width: 85%; margin-top: 2px; }
     .message-wrapper.consecutive { margin-top: -1px; }
     
-    /* CHAT BUBBLES - EXTRA LARGE FONTS */
+    /* VERY LARGE TEXT INSIDE BUBBLES */
     .bubble { 
-        font-size: 22px; 
-        padding: 10px 14px; 
+        font-size: 18px; 
+        padding: 8px 12px; 
         border-radius: 12px; 
         line-height: 1.35;
     } 
     
     .typing-banner { 
         position: absolute;
-        bottom: calc(64px + env(safe-area-inset-bottom));
+        bottom: calc(58px + env(safe-area-inset-bottom));
         left: 0; right: 0;
         padding: 2px 8px; 
         font-size: 11px; 
@@ -483,47 +483,47 @@ body {
     }
     .chat-img { max-height: 120px; border-radius: 6px; } 
     
-    /* Anchored bottom control layout bar */
+    /* Static footer anchor protecting viewport bounds */
     .input-area {
         position: absolute;
         bottom: 0;
         left: 0;
         right: 0;
-        height: calc(64px + env(safe-area-inset-bottom));
+        height: calc(58px + env(safe-area-inset-bottom));
         box-sizing: border-box;
         background: var(--bg-side);
-        padding: 8px 8px;
-        padding-bottom: calc(8px + env(safe-area-inset-bottom));
+        padding: 6px 8px;
+        padding-bottom: calc(6px + env(safe-area-inset-bottom));
         width: 100% !important;
     }
     
-    /* Expanded action bar height to complement bigger writing layout */
+    /* Flexible action row prevents overflow */
     .action-bar { 
         padding: 0 8px; 
         gap: 6px; 
         border-radius: 20px; 
-        height: 48px;
+        height: 42px;
         width: 100%;
         box-sizing: border-box;
         display: flex;
         align-items: center;
     }
     
-    /* TYPING FIELDS - EXTRA LARGE FONTS */
+    /* VERY LARGE TEXT TYPING FIELD */
     #message { 
-        font-size: 22px; 
+        font-size: 18px; 
         padding: 0;
         width: 100%;
         min-width: 0; 
     } 
     
-    .file-label { font-size: 20px; min-width: 24px; text-align: center; }
+    .file-label { font-size: 18px; min-width: 22px; text-align: center; }
     
-    #sendBtn { width: 34px; height: 34px; }
-    #sendBtn svg { width: 16px; height: 16px; }
-    #scrollBottomBtn { bottom: 76px; right: 10px; width: 28px; height: 28px; font-size: 11px; }
+    #sendBtn { width: 30px; height: 30px; }
+    #sendBtn svg { width: 14px; height: 14px; }
+    #scrollBottomBtn { bottom: 70px; right: 10px; width: 28px; height: 28px; font-size: 11px; }
     
-    /* Identity setup modal customization */
+    /* Modal controls custom fit for phones */
     .modal-content {
         padding: 15px;
         width: 220px;
