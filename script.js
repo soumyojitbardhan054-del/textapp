@@ -58,7 +58,7 @@ document.addEventListener("DOMContentLoaded", () => {
   
   // Image Selection Elements
   const imageInput = document.getElementById("imageInput");
-  const cameraInput = document.getElementById("cameraInput"); // New Camera Element
+  const cameraInput = document.getElementById("cameraInput");
   const imagePreviewContainer = document.getElementById("imagePreviewContainer");
   const imagePreview = document.getElementById("imagePreview");
   const cancelImage = document.getElementById("cancelImage");
@@ -206,14 +206,12 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // Gallery Input Change
   if (imageInput) {
     imageInput.addEventListener("change", async (e) => {
       await processSelectedFile(e.target.files[0]);
     });
   }
 
-  // Camera Input Capture Change
   if (cameraInput) {
     cameraInput.addEventListener("change", async (e) => {
       await processSelectedFile(e.target.files[0]);
@@ -396,7 +394,7 @@ document.addEventListener("DOMContentLoaded", () => {
       img.addEventListener("click", (e) => {
         if (zoomedImage && zoomModal) {
           zoomedImage.src = e.target.src;
-          currentScale = 1; // Reset scale back to normal on fresh open
+          currentScale = 1; 
           zoomedImage.style.transform = `scale(${currentScale})`;
           zoomModal.classList.remove("hidden");
         }
@@ -462,6 +460,9 @@ document.addEventListener("DOMContentLoaded", () => {
     combineFooterDisplays();
   });
 
+  // ==========================================
+  // AI Integration via Groq API
+  // ==========================================
   async function fetchAiReply(userPrompt) {
     try {
       updateAiPresence(true);
@@ -473,7 +474,7 @@ document.addEventListener("DOMContentLoaded", () => {
           "Authorization": "Bearer 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"
         },
         body: JSON.stringify({
-          model: "llama-3.3-70b-specdec", // You can change this to any supported Groq model like "llama3-8b-8192"
+          model: "llama-3.3-70b-specdec", 
           messages: [
             { role: "system", content: "You are a helpful, conversational, super fast AI assistant inside a developer chat room." },
             { role: "user", content: userPrompt }
@@ -499,7 +500,7 @@ document.addEventListener("DOMContentLoaded", () => {
       await addDoc(messagesCollection, {
         sender: "AI Bot",
         senderColor: "#ff9f43",
-        message: "❌ Failed to fetch reply from Groq. Check connection or API keys.",
+        message: "❌ Failed to fetch reply from AI. Check connection or API keys.",
         time: Date.now()
       });
     } finally {
@@ -564,7 +565,6 @@ document.addEventListener("DOMContentLoaded", () => {
         time: Date.now()
       });
 
-      // Clear layout and reset references after send completes
       messageArea.value = "";
       localStorage.removeItem("chat_draft");
       selectedImageBase64 = "";
@@ -608,7 +608,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Lightbox Control Buttons Event Handlers
+  // Lightbox Control Buttons
   if (zoomInBtn && zoomedImage) {
     zoomInBtn.addEventListener("click", () => {
       currentScale += 0.25;
@@ -618,7 +618,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (zoomOutBtn && zoomedImage) {
     zoomOutBtn.addEventListener("click", () => {
-      if (currentScale > 0.5) { // Prevent image from turning upside down
+      if (currentScale > 0.5) { 
         currentScale -= 0.25;
         zoomedImage.style.transform = `scale(${currentScale})`;
       }
@@ -631,7 +631,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Mobile scroll helper button
+  // Mobile scroll helper
   const scrollBtn = document.createElement("button");
   scrollBtn.id = "scrollBottomBtn";
   scrollBtn.type = "button";
