@@ -449,6 +449,15 @@ body {
         border-radius: 4px;
     }
     
+    /* Specific styling for the Font Size buttons on mobile */
+    #incFontBtn, #decFontBtn {
+        padding: 4px 8px;
+        font-size: 11px;
+        font-weight: bold;
+        min-width: 28px;
+        text-align: center;
+    }
+    
     /* Positions the message canvas perfectly without squeezing */
     #chatHistory {
         position: absolute;
@@ -465,7 +474,7 @@ body {
     .message-wrapper { max-width: 85%; margin-top: 2px; }
     .message-wrapper.consecutive { margin-top: -1px; }
     
-    /* VERY LARGE TEXT INSIDE BUBBLES */
+    /* DEFAULT VERY LARGE TEXT INSIDE BUBBLES (Can be overridden by JS) */
     .bubble { 
         font-size: 18px; 
         padding: 8px 12px; 
@@ -509,7 +518,7 @@ body {
         align-items: center;
     }
     
-    /* VERY LARGE TEXT TYPING FIELD */
+    /* DEFAULT VERY LARGE TEXT TYPING FIELD (Can be overridden by JS) */
     #message { 
         font-size: 18px; 
         padding: 0;
