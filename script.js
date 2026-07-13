@@ -30,6 +30,7 @@ let currentUsername = localStorage.getItem("chat_username") || "";
 let currentUserColor = localStorage.getItem("chat_user_color") || "#00d2d3";
 let selectedImageBase64 = "";
 let typingTimeout = null;
+let currentScale = 1; // Tracks current zoom level
 
 const themes = ["#1e2330", "#2c1a30", "#1a2e26", "#301a1a"];
 let currentThemeIndex = parseInt(localStorage.getItem("chat_theme_index")) || 0;
@@ -54,10 +55,21 @@ document.addEventListener("DOMContentLoaded", () => {
   const messageArea = document.getElementById("message");
   const chatHistory = document.getElementById("chatHistory");
   const sendBtn = document.getElementById("sendBtn");
+  
+  // Image Selection Elements
   const imageInput = document.getElementById("imageInput");
+  const cameraInput = document.getElementById("cameraInput"); // New Camera Element
   const imagePreviewContainer = document.getElementById("imagePreviewContainer");
   const imagePreview = document.getElementById("imagePreview");
   const cancelImage = document.getElementById("cancelImage");
+  
+  // Zoom Elements
+  const zoomModal = document.getElementById("zoomModal");
+  const zoomedImage = document.getElementById("zoomedImage");
+  const closeZoom = document.getElementById("closeZoom");
+  const zoomInBtn = document.getElementById("zoomInBtn");
+  const zoomOutBtn = document.getElementById("zoomOutBtn");
+
   const themeBtn = document.getElementById("themeBtn");
   const clearChatBtn = document.getElementById("clearChatBtn");
   const onlineUsersList = document.getElementById("onlineUsersList");
@@ -185,14 +197,26 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  // Unified File Processor for both Camera and Gallery
+  async function processSelectedFile(file) {
+    if (file && imagePreview && imagePreviewContainer) {
+      selectedImageBase64 = await compressImage(file);
+      imagePreview.src = selectedImageBase64;
+      imagePreviewContainer.classList.remove("hidden");
+    }
+  }
+
+  // Gallery Input Change
   if (imageInput) {
     imageInput.addEventListener("change", async (e) => {
-      const file = e.target.files[0];
-      if (file && imagePreview && imagePreviewContainer) {
-        selectedImageBase64 = await compressImage(file);
-        imagePreview.src = selectedImageBase64;
-        imagePreviewContainer.classList.remove("hidden");
-      }
+      await processSelectedFile(e.target.files[0]);
+    });
+  }
+
+  // Camera Input Capture Change
+  if (cameraInput) {
+    cameraInput.addEventListener("change", async (e) => {
+      await processSelectedFile(e.target.files[0]);
     });
   }
 
@@ -200,6 +224,7 @@ document.addEventListener("DOMContentLoaded", () => {
     cancelImage.addEventListener("click", () => {
       selectedImageBase64 = "";
       if (imageInput) imageInput.value = "";
+      if (cameraInput) cameraInput.value = "";
       if (imagePreviewContainer) imagePreviewContainer.classList.add("hidden");
     });
   }
@@ -355,6 +380,7 @@ document.addEventListener("DOMContentLoaded", () => {
       chatHistory.appendChild(msgElement);
     });
 
+    // Wire up Delete Message Buttons
     document.querySelectorAll(".delete-single-btn").forEach(btn => {
       btn.addEventListener("click", async (e) => {
         const idToDelete = e.target.getAttribute("data-id");
@@ -364,17 +390,30 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     });
 
-    chatHistory.scrollTo({
-  top: chatHistory.scrollHeight,
-  behavior: "smooth"
-});
-window.visualViewport?.addEventListener("resize",()=>{
- setTimeout(()=>{
- const ch=document.getElementById("chatHistory");
- if(ch) ch.scrollTop=ch.scrollHeight;
- },100);
-});
+    // Wire up Lightbox Zoom on Chat Images
+    document.querySelectorAll(".chat-img").forEach(img => {
+      img.style.cursor = "zoom-in";
+      img.addEventListener("click", (e) => {
+        if (zoomedImage && zoomModal) {
+          zoomedImage.src = e.target.src;
+          currentScale = 1; // Reset scale back to normal on fresh open
+          zoomedImage.style.transform = `scale(${currentScale})`;
+          zoomModal.classList.remove("hidden");
+        }
+      });
+    });
 
+    chatHistory.scrollTo({
+      top: chatHistory.scrollHeight,
+      behavior: "smooth"
+    });
+    
+    window.visualViewport?.addEventListener("resize",()=>{
+       setTimeout(()=>{
+         const ch=document.getElementById("chatHistory");
+         if(ch) ch.scrollTop=ch.scrollHeight;
+       },100);
+    });
   });
 
   onSnapshot(statusCollection, (snapshot) => {
@@ -510,10 +549,12 @@ window.visualViewport?.addEventListener("resize",()=>{
         time: Date.now()
       });
 
+      // Clear layout and reset references after send completes
       messageArea.value = "";
       localStorage.removeItem("chat_draft");
       selectedImageBase64 = "";
       if (imageInput) imageInput.value = "";
+      if (cameraInput) cameraInput.value = "";
       if (imagePreviewContainer) imagePreviewContainer.classList.add("hidden");
       
       clearTimeout(typingTimeout);
@@ -551,27 +592,51 @@ window.visualViewport?.addEventListener("resize",()=>{
       }
     });
   }
+
+  // Lightbox Control Buttons Event Handlers
+  if (zoomInBtn && zoomedImage) {
+    zoomInBtn.addEventListener("click", () => {
+      currentScale += 0.25;
+      zoomedImage.style.transform = `scale(${currentScale})`;
+    });
+  }
+
+  if (zoomOutBtn && zoomedImage) {
+    zoomOutBtn.addEventListener("click", () => {
+      if (currentScale > 0.5) { // Prevent image from turning upside down
+        currentScale -= 0.25;
+        zoomedImage.style.transform = `scale(${currentScale})`;
+      }
+    });
+  }
+
+  if (closeZoom && zoomModal) {
+    closeZoom.addEventListener("click", () => {
+      zoomModal.classList.add("hidden");
+    });
+  }
+
   // Mobile scroll helper button
-const scrollBtn = document.createElement("button");
-scrollBtn.id = "scrollBottomBtn";
-scrollBtn.type = "button";
-scrollBtn.textContent = "⬇";
-scrollBtn.title = "Scroll to latest message";
-document.querySelector(".chat-container")?.appendChild(scrollBtn);
+  const scrollBtn = document.createElement("button");
+  scrollBtn.id = "scrollBottomBtn";
+  scrollBtn.type = "button";
+  scrollBtn.textContent = "⬇";
+  scrollBtn.title = "Scroll to latest message";
+  document.querySelector(".chat-container")?.appendChild(scrollBtn);
 
-const scrollToLatest = () => {
-  if (!chatHistory) return;
-  chatHistory.scrollTo({
-    top: chatHistory.scrollHeight,
-    behavior: "smooth"
+  const scrollToLatest = () => {
+    if (!chatHistory) return;
+    chatHistory.scrollTo({
+      top: chatHistory.scrollHeight,
+      behavior: "smooth"
+    });
+  };
+
+  scrollBtn.addEventListener("click", scrollToLatest);
+
+  chatHistory?.addEventListener("scroll", () => {
+    const nearBottom =
+      chatHistory.scrollHeight - chatHistory.scrollTop - chatHistory.clientHeight < 80;
+    scrollBtn.style.display = nearBottom ? "none" : "flex";
   });
-};
-
-scrollBtn.addEventListener("click", scrollToLatest);
-
-chatHistory?.addEventListener("scroll", () => {
-  const nearBottom =
-    chatHistory.scrollHeight - chatHistory.scrollTop - chatHistory.clientHeight < 80;
-  scrollBtn.style.display = nearBottom ? "none" : "flex";
-});
 });
