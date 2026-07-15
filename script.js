@@ -13,6 +13,7 @@ import {
   writeBatch
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
+// Firebase App Configuration Matrix
 const firebaseConfig = {
   apiKey: "AIzaSyAw5Bjo8hHrrwGy-bLYw-bVj6VxMxQikkY",
   authDomain: "texting-996fa.firebaseapp.com",
@@ -27,6 +28,7 @@ const db = getFirestore(app);
 const messagesCollection = collection(db, "messages");
 const statusCollection = collection(db, "status");
 
+// Operational Context States
 let currentUsername = localStorage.getItem("chat_username") || "";
 let currentUserColor = localStorage.getItem("chat_user_color") || "#00d2d3";
 let selectedImageBase64 = "";
@@ -36,10 +38,12 @@ let currentScale = 1;
 const themes = ["#1e2330", "#2c1a30", "#1a2e26", "#301a1a"];
 let currentThemeIndex = parseInt(localStorage.getItem("chat_theme_index")) || 0;
 
-let currentFontSize = parseInt(localStorage.getItem('chatFontSize')) || 16; 
+// Dynamic Workspace Scaling Parameters
+let currentFontSize = parseInt(localStorage.getItem('chatFontSize')) || 22; 
 const minFontSize = 8;
 const maxFontSize = 46;
 
+// Automated Room Purge Engine Status Metrics
 let targetEndTimestamp = 0;
 let godIsActive = true;
 let currentAnswer = null;
@@ -48,6 +52,9 @@ let warningTwoMinSent = false;
 let globalTimerDisplayString = "";
 let globalTypingDisplayString = "";
 
+/**
+ * Dynamically binds variable style layers for real-time fluid resizing overrides
+ */
 function applyChatFontSize(size) {
   let styleEl = document.getElementById('dynamic-font-style');
   if (!styleEl) {
@@ -55,14 +62,21 @@ function applyChatFontSize(size) {
     styleEl.id = 'dynamic-font-style';
     document.head.appendChild(styleEl);
   }
-  styleEl.innerHTML = `.bubble, #message { font-size: ${size}px !important; }`;
+  
+  styleEl.innerHTML = `
+    .bubble, #message { 
+        font-size: ${size}px !important; 
+    }
+  `;
+  
   localStorage.setItem('chatFontSize', size);
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  // Apply saved layout scaling factors instantly
   applyChatFontSize(currentFontSize);
 
-  const sidebarEl = document.querySelector(".sidebar");
+  // Element Cache Matrix
   const nameModal = document.getElementById("nameModal");
   const usernameInput = document.getElementById("usernameInput");
   const saveNameBtn = document.getElementById("saveNameBtn");
@@ -95,41 +109,46 @@ document.addEventListener("DOMContentLoaded", () => {
   const onlineUsersList = document.getElementById("onlineUsersList");
   const typingIndicator = document.getElementById("typingIndicator");
 
-  // Modern Navigation Minimise/Expand Button Implementation
-  const terminalsToggleBtn = document.createElement("button");
-  terminalsToggleBtn.id = "terminalsToggleBtn";
-  terminalsToggleBtn.className = "secondary-btn";
-  terminalsToggleBtn.title = "Toggle Terminals Panel Grid";
-  terminalsToggleBtn.innerHTML = `
-    <svg class="btn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h7" />
-    </svg>
-    <span>Terminals</span>
-  `;
-  
-  const targetHeaderActions = document.querySelector(".header-actions");
-  if (targetHeaderActions) {
-    targetHeaderActions.insertBefore(terminalsToggleBtn, targetHeaderActions.firstChild);
-  }
-
-  // Toggle state triggers
-  terminalsToggleBtn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    sidebarEl?.classList.toggle("mobile-expanded");
-  });
-
-  document.addEventListener("click", (e) => {
-    if (window.innerWidth <= 900 && sidebarEl?.classList.contains("mobile-expanded")) {
-      if (!sidebarEl.contains(e.target) && e.target !== terminalsToggleBtn) {
-        sidebarEl.classList.remove("mobile-expanded");
-      }
-    }
-  });
-
+  // Reset overlay view visibility
   if (zoomModal) zoomModal.classList.add("hidden");
   if (chatContainer) chatContainer.style.backgroundColor = themes[currentThemeIndex];
   if (messageArea) messageArea.value = localStorage.getItem("chat_draft") || "";
 
+  // ==========================================
+  // NEW ACTIVE TERMINALS MINIMIZE CONTROLLER
+  // ==========================================
+  const activeUsersPanel = document.querySelector(".active-users-panel");
+  const panelHeader = document.querySelector(".panel-header");
+
+  if (panelHeader && activeUsersPanel) {
+    // Dynamically inject the toggle drop-arrow into layout if not preset in markup
+    if (!document.querySelector(".panel-toggle-btn")) {
+      const rightMetaContainer = document.createElement("div");
+      rightMetaContainer.className = "panel-header-right";
+      
+      const liveBadge = document.querySelector(".live-badge");
+      if (liveBadge) rightMetaContainer.appendChild(liveBadge);
+
+      const toggleBtn = document.createElement("button");
+      toggleBtn.type = "button";
+      toggleBtn.className = "panel-toggle-btn";
+      toggleBtn.title = "Toggle Panel Viewport";
+      toggleBtn.innerHTML = `
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
+      `;
+      rightMetaContainer.appendChild(toggleBtn);
+      panelHeader.appendChild(rightMetaContainer);
+    }
+
+    // Toggle minimize states gracefully using high performance CSS max-height modifications
+    panelHeader.addEventListener("click", () => {
+      activeUsersPanel.classList.toggle("minimized");
+    });
+  }
+
+  // Identity Palette Initializer Loops
   document.querySelectorAll(".color-dot").forEach(dot => {
     if (dot.getAttribute("data-color") === currentUserColor) {
       document.querySelectorAll(".color-dot").forEach(d => d.classList.remove("selected"));
@@ -142,12 +161,15 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
+  // Network Cluster Presence Dispatches
   async function updatePresence(isOnline, isTyping = false, oldName = "") {
     if (!currentUsername) return;
+
     if (oldName && oldName.toLowerCase() !== currentUsername.toLowerCase()) {
       const oldDocRef = doc(statusCollection, oldName.toLowerCase().replace(/\s+/g, '_'));
-      await deleteDoc(oldDocRef).catch(err => console.error(err));
+      await deleteDoc(oldDocRef).catch(err => console.error("Old record purge failed:", err));
     }
+
     const userDocRef = doc(statusCollection, currentUsername.toLowerCase().replace(/\s+/g, '_'));
     await setDoc(userDocRef, {
       username: currentUsername,
@@ -155,7 +177,7 @@ document.addEventListener("DOMContentLoaded", () => {
       isOnline: isOnline,
       isTyping: isTyping,
       lastSeen: Date.now()
-    }, { merge: true }).catch(err => console.error(err));
+    }, { merge: true }).catch(err => console.error("Presence sync failed:", err));
   }
 
   async function updateAiPresence(isTyping) {
@@ -166,7 +188,7 @@ document.addEventListener("DOMContentLoaded", () => {
       isOnline: true,
       isTyping: isTyping,
       lastSeen: Date.now()
-    }, { merge: true }).catch(err => console.error(err));
+    }, { merge: true }).catch(err => console.error("AI node sync failed:", err));
   }
 
   function updateIdentityDisplays() {
@@ -182,7 +204,9 @@ document.addEventListener("DOMContentLoaded", () => {
   }
   updateIdentityDisplays();
 
-  window.addEventListener("beforeunload", () => { updatePresence(false, false); });
+  window.addEventListener("beforeunload", () => {
+    updatePresence(false, false);
+  });
 
   function handleUserSetupSave() {
     if (!usernameInput) return;
@@ -201,15 +225,25 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (saveNameBtn) {
     saveNameBtn.addEventListener("click", handleUserSetupSave);
-  }
-
-  if (changeNameBtn && usernameInput && nameModal) {
-    changeNameBtn.addEventListener("click", () => {
-      usernameInput.value = currentUsername;
-      nameModal.classList.remove("hidden-modal");
+    saveNameBtn.addEventListener("touchend", (e) => {
+      e.preventDefault();
+      handleUserSetupSave();
     });
   }
 
+  if (changeNameBtn && usernameInput && nameModal) {
+    const openModal = () => {
+      usernameInput.value = currentUsername;
+      nameModal.classList.remove("hidden-modal");
+    };
+    changeNameBtn.addEventListener("click", openModal);
+    changeNameBtn.addEventListener("touchend", (e) => {
+      e.preventDefault();
+      openModal();
+    });
+  }
+
+  // Local Media Downscaling & Canvas Optimization
   function compressImage(file) {
     return new Promise((resolve) => {
       const reader = new FileReader();
@@ -262,15 +296,19 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  // Administrative Purge Pipelines
   async function purgeChatRoomLogs() {
     try {
       const querySnapshot = await getDocs(messagesCollection);
       if (querySnapshot.empty) return;
+      
       const batch = writeBatch(db);
-      querySnapshot.docs.forEach((docSnapshot) => { batch.delete(docSnapshot.ref); });
+      querySnapshot.docs.forEach((docSnapshot) => {
+        batch.delete(docSnapshot.ref);
+      });
       await batch.commit();
     } catch (err) {
-      console.error(err);
+      console.error("Batch clear operation encountered an anomaly:", err);
     }
   }
 
@@ -280,7 +318,7 @@ document.addEventListener("DOMContentLoaded", () => {
       senderColor: "#ff4757",
       message: textPayload,
       time: Date.now()
-    }).catch(err => console.error(err));
+    }).catch(err => console.error("God command dispatch anomaly:", err));
   }
 
   function makeHardQuestion() {
@@ -296,6 +334,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let parts = [];
     if (globalTimerDisplayString) parts.push(globalTimerDisplayString);
     if (globalTypingDisplayString) parts.push(globalTypingDisplayString);
+    
     if (parts.length > 0) {
       typingIndicator.innerHTML = parts.join(" | ");
       typingIndicator.classList.remove("hidden");
@@ -304,6 +343,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  // Global Sync Timer Loop
   onSnapshot(doc(db, "status", "timer_state"), async (docSnap) => {
     if (docSnap.exists()) {
       targetEndTimestamp = docSnap.data().endTime;
@@ -315,21 +355,24 @@ document.addEventListener("DOMContentLoaded", () => {
 
   setInterval(async () => {
     if (!targetEndTimestamp) return;
+
     const now = Date.now();
     let remainingSeconds = Math.max(0, Math.floor((targetEndTimestamp - now) / 1000));
     const minutesLeft = Math.floor(remainingSeconds / 60);
     const secondsLeft = remainingSeconds % 60;
 
-    globalTimerDisplayString = `Purge in: ${minutesLeft}m ${secondsLeft}s [God: ${godIsActive ? "👁️" : "🤐"}]`;
+    globalTimerDisplayString = `Purge in: ${minutesLeft}m ${secondsLeft}s [God Mode: ${godIsActive ? "👁️ ACTIVE" : "🤐 MUTED"}]`;
     combineFooterDisplays();
 
     if (godIsActive && remainingSeconds === 120 && !warningTwoMinSent) {
       warningTwoMinSent = true;
-      sendGodSms("⚠️ TWO MINUTES REMAINING. Chat logs draw closer to erasure.");
+      sendGodSms("⚠️ TWO MINUTES REMAINING. Chat canvas history erasure approaching.");
     }
+
     if (godIsActive && remainingSeconds <= 5 && remainingSeconds > 0) {
-      sendGodSms(`🚨 ${remainingSeconds} SECONDS REMAINING!`);
+      sendGodSms(`🚨 ${remainingSeconds} SECONDS REMAINING! Purification cycle initializing.`);
     }
+
     if (remainingSeconds <= 0) {
       targetEndTimestamp = 0; 
       await purgeChatRoomLogs();
@@ -341,14 +384,16 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }, 1000);
 
+  // Interaction Canvas Triggers
   if (chatHistory) {
     chatHistory.addEventListener("click", async (e) => {
       if (e.target.classList.contains("delete-single-btn")) {
         const idToDelete = e.target.getAttribute("data-id");
-        if (idToDelete && confirm("Delete this message?")) {
+        if (idToDelete && confirm("Purge specific message node?")) {
           await deleteDoc(doc(db, "messages", idToDelete)).catch(err => console.error(err));
         }
       }
+      
       if (e.target.classList.contains("chat-img")) {
         if (zoomedImage && zoomModal) {
           zoomedImage.src = e.target.src;
@@ -360,12 +405,14 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  // Active Real-time Messaging Pipelines
   const qMessages = query(messagesCollection, orderBy("time", "asc"));
   onSnapshot(qMessages, (snapshot) => {
     if (!chatHistory) return;
     chatHistory.innerHTML = "";
+
     if (snapshot.empty) {
-      chatHistory.innerHTML = `<div class="system-msg">Room empty. Talk while you can...</div>`;
+      chatHistory.innerHTML = `<div class="system-msg">Buffers empty. Broadcast system fully functional.</div>`;
       return;
     }
 
@@ -379,15 +426,23 @@ document.addEventListener("DOMContentLoaded", () => {
       lastSender = data.sender;
 
       msgElement.className = `message-wrapper ${isMe ? "me" : "them"} ${isConsecutive ? "consecutive" : ""}`;
-      const timeString = data.time ? new Date(data.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "";
+
+      const timeString = data.time 
+        ? new Date(data.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
+        : "";
+
       const customUserColor = data.senderColor || "var(--accent)";
       const firstInitial = data.sender ? data.sender.charAt(0).toUpperCase() : "?";
 
       let cleanedMessage = data.message || "";
       if (cleanedMessage) {
         cleanedMessage = cleanedMessage
-          .replace(/\$\$/g, "").replace(/\$/g, "").replace(/\\\[/g, "").replace(/\\\]/g, "")
-          .replace(/\\\(|\\\)/g, "").replace(/\\text\{([^}]+)\}/g, "$1")
+          .replace(/\$\$/g, "")
+          .replace(/\$/g, "")
+          .replace(/\\\[/g, "")
+          .replace(/\\\]/g, "")
+          .replace(/\\\(|\\\)/g, "")
+          .replace(/\\text\{([^}]+)\}/g, "$1")
           .replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, "$1/$2"); 
       }
 
@@ -400,26 +455,36 @@ document.addEventListener("DOMContentLoaded", () => {
       }
       
       innerContent += `<div class="bubble-layout">`;
-      if (data.image) innerContent += `<img src="${data.image}" class="chat-img" alt="shared photo">`;
-      if (cleanedMessage) innerContent += `<div class="bubble" style="${isMe ? `background:${customUserColor};color:#111;` : ''}">${cleanedMessage}</div>`;
+      if (data.image) {
+        innerContent += `<img src="${data.image}" class="chat-img" alt="Attached Asset">`;
+      }
+      if (cleanedMessage) {
+        innerContent += `<div class="bubble" style="${isMe ? `background:${customUserColor};color:#111;` : ''}">${cleanedMessage}</div>`;
+      }
       
       innerContent += `
           <div class="bubble-sub">
             <span class="timestamp">${timeString}</span>
-            <span class="delete-single-btn" data-id="${msgId}">🗑️</span>
+            <span class="delete-single-btn" data-id="${msgId}" title="Delete Message Target">🗑️</span>
           </div>
         </div>
       `;
+
       msgElement.innerHTML = innerContent;
       chatHistory.appendChild(msgElement);
     });
-    chatHistory.scrollTop = chatHistory.scrollHeight;
+
+    chatHistory.scrollTo({ top: chatHistory.scrollHeight, behavior: "smooth" });
   });
 
+  // Keep bottom scrolling intact on mobile dynamic dynamic viewport overlays
   window.visualViewport?.addEventListener("resize", () => {
-     setTimeout(() => { if (chatHistory) chatHistory.scrollTop = chatHistory.scrollHeight; }, 100);
+     setTimeout(() => {
+       if (chatHistory) chatHistory.scrollTop = chatHistory.scrollHeight;
+     }, 100);
   });
 
+  // Node User List Synchronizer Loops
   onSnapshot(statusCollection, (snapshot) => {
     if (onlineUsersList) onlineUsersList.innerHTML = "";
     if (onlineUsersList) {
@@ -438,22 +503,34 @@ document.addEventListener("DOMContentLoaded", () => {
     snapshot.forEach(docSnap => {
       const data = docSnap.data();
       const isRecent = (Date.now() - data.lastSeen) < 120000;
+
       if (data.username !== "AI Bot" && data.username !== "GOD" && data.isOnline && isRecent) {
         if (onlineUsersList) {
           const firstLetter = data.username ? data.username.charAt(0).toUpperCase() : "?";
           const userRow = document.createElement("div");
           userRow.className = "online-user-item";
-          userRow.innerHTML = `<div class="mini-avatar" style="background:${data.color || 'var(--accent)'}">${firstLetter}</div><span>${data.username}</span>`;
+          userRow.innerHTML = `
+            <div class="mini-avatar" style="background:${data.color || 'var(--accent)'}">${firstLetter}</div>
+            <span>${data.username}</span>
+          `;
           onlineUsersList.appendChild(userRow);
         }
-        if (data.isTyping && data.username !== currentUsername) typingUsers.push(data.username);
+
+        if (data.isTyping && data.username !== currentUsername) {
+          typingUsers.push(data.username);
+        }
       }
     });
 
-    globalTypingDisplayString = typingUsers.length > 0 ? `✍️ ${typingUsers.join(", ")} typing...` : "";
+    if (typingUsers.length > 0) {
+      globalTypingDisplayString = `✍️ ${typingUsers.join(", ")} ${typingUsers.length === 1 ? "is" : "are"} typing...`;
+    } else {
+      globalTypingDisplayString = "";
+    }
     combineFooterDisplays();
   });
 
+  // Assistant Pipeline Routing
   async function fetchAiReply(userPrompt) {
     try {
       updateAiPresence(true);
@@ -462,7 +539,7 @@ document.addEventListener("DOMContentLoaded", () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           messages: [
-            { role: "system", content: "You are a helpful AI assistant inside a developer chat room." },
+            { role: "system", content: "You are a helpful, conversational, super fast AI assistant inside a developer chat room." },
             { role: "user", content: userPrompt }
           ]
         })
@@ -471,11 +548,11 @@ document.addEventListener("DOMContentLoaded", () => {
       await addDoc(messagesCollection, {
         sender: "AI Bot",
         senderColor: "#ff9f43",
-        message: replyText ? replyText.trim() : "Timed out. Try again!",
+        message: replyText ? replyText.trim() : "Core inference engine timed out. Resubmit request.",
         time: Date.now()
       });
     } catch (err) {
-      console.error(err);
+      console.error("AI Node interaction failure:", err);
     } finally {
       updateAiPresence(false);
     }
@@ -486,10 +563,16 @@ document.addEventListener("DOMContentLoaded", () => {
       localStorage.setItem("chat_draft", e.target.value);
       updatePresence(true, true);
       clearTimeout(typingTimeout);
-      typingTimeout = setTimeout(() => { updatePresence(true, false); }, 2500);
+      typingTimeout = setTimeout(() => {
+        updatePresence(true, false);
+      }, 2500);
     });
+    
     messageArea.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") { e.preventDefault(); sendBtn.click(); }
+      if (e.key === "Enter") {
+        e.preventDefault(); 
+        sendBtn.click();
+      }
     });
   }
 
@@ -501,18 +584,27 @@ document.addEventListener("DOMContentLoaded", () => {
 
       if (godIsActive && currentAnswer !== null) {
         if (parseInt(text) === currentAnswer) {
-          godIsActive = false; currentAnswer = null; messageArea.value = "";
-          await sendGodSms("❌ Command approved. Silenced until reset."); return;
+          godIsActive = false;
+          currentAnswer = null;
+          messageArea.value = "";
+          await sendGodSms("❌ Manual override recognized. I am muted until the cycle loop re-initializes.");
+          return;
         } else {
-          messageArea.value = ""; await sendGodSms("❌ INCORRECT."); return;
+          messageArea.value = "";
+          await sendGodSms("❌ SYSTEM VERIFICATION FAILURE. Retake challenge or face database clear.");
+          return;
         }
       }
 
       if (text.toLowerCase() === "/removegod") {
         messageArea.value = "";
-        if (!godIsActive) { await sendGodSms("Already muted."); return; }
+        if (!godIsActive) {
+          await sendGodSms("Target presence already muted this turn.");
+          return;
+        }
         const mathQuestion = makeHardQuestion();
-        await sendGodSms(`⚡ CHALLENGE: ${mathQuestion}`); return;
+        await sendGodSms(`⚡ SECURITY ARCHITECTURE CHALLENGE: ${mathQuestion}`);
+        return;
       }
 
       await addDoc(messagesCollection, {
@@ -521,7 +613,7 @@ document.addEventListener("DOMContentLoaded", () => {
         message: text,
         image: selectedImageBase64,
         time: Date.now()
-      }).catch(err => console.error(err));
+      }).catch(err => console.error("Message pack generation anomaly:", err));
 
       messageArea.value = "";
       localStorage.removeItem("chat_draft");
@@ -529,12 +621,22 @@ document.addEventListener("DOMContentLoaded", () => {
       if (imageInput) imageInput.value = "";
       if (cameraInput) cameraInput.value = "";
       if (imagePreviewContainer) imagePreviewContainer.classList.add("hidden");
+      
       clearTimeout(typingTimeout);
       updatePresence(true, false);
 
       if (text.toLowerCase().startsWith("@ai")) {
         const cleanedPrompt = text.replace(/^@ai\s*/i, "").trim();
-        if (cleanedPrompt) fetchAiReply(cleanedPrompt);
+        if (cleanedPrompt) {
+          fetchAiReply(cleanedPrompt);
+        } else {
+          await addDoc(messagesCollection, {
+            sender: "AI Bot",
+            senderColor: "#ff9f43",
+            message: "👋 Ready to serve. Input `@ai` followed by a request description.",
+            time: Date.now()
+          });
+        }
       }
     });
   }
@@ -548,26 +650,65 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   if (incFontBtn && decFontBtn) {
-    incFontBtn.addEventListener("click", () => { if (currentFontSize < maxFontSize) { currentFontSize += 2; applyChatFontSize(currentFontSize); } });
-    decFontBtn.addEventListener("click", () => { if (currentFontSize > minFontSize) { currentFontSize -= 2; applyChatFontSize(currentFontSize); } });
+    incFontBtn.addEventListener("click", () => {
+      if (currentFontSize < maxFontSize) {
+        currentFontSize += 2;
+        applyChatFontSize(currentFontSize);
+      }
+    });
+    
+    decFontBtn.addEventListener("click", () => {
+      if (currentFontSize > minFontSize) {
+        currentFontSize -= 2;
+        applyChatFontSize(currentFontSize);
+      }
+    });
   }
 
   if (clearChatBtn) {
     clearChatBtn.addEventListener("click", async () => {
-      if (confirm("Clear entire chat log?")) await purgeChatRoomLogs();
+      if (confirm("Confirm full purge of shared visual message data?")) {
+        await purgeChatRoomLogs();
+      }
     });
   }
 
-  if (zoomInBtn && zoomedImage) { zoomInBtn.addEventListener("click", () => { currentScale += 0.25; zoomedImage.style.transform = `scale(${currentScale})`; }); }
-  if (zoomOutBtn && zoomedImage) { zoomOutBtn.addEventListener("click", () => { if (currentScale > 0.5) { currentScale -= 0.25; zoomedImage.style.transform = `scale(${currentScale})`; } }); }
-  if (closeZoom && zoomModal) { closeZoom.addEventListener("click", () => { zoomModal.classList.add("hidden"); }); }
+  if (zoomInBtn && zoomedImage) {
+    zoomInBtn.addEventListener("click", () => {
+      currentScale += 0.25;
+      zoomedImage.style.transform = `scale(${currentScale})`;
+    });
+  }
 
+  if (zoomOutBtn && zoomedImage) {
+    zoomOutBtn.addEventListener("click", () => {
+      if (currentScale > 0.5) {
+        currentScale -= 0.25;
+        zoomedImage.style.transform = `scale(${currentScale})`;
+      }
+    });
+  }
+
+  if (closeZoom && zoomModal) {
+    closeZoom.addEventListener("click", () => {
+      zoomModal.classList.add("hidden");
+    });
+  }
+
+  // Back to bottom layout navigation injectors
   const scrollBtn = document.createElement("button");
   scrollBtn.id = "scrollBottomBtn";
   scrollBtn.type = "button";
   scrollBtn.textContent = "⬇";
+  scrollBtn.title = "Scroll to latest message";
   document.querySelector(".chat-container")?.appendChild(scrollBtn);
-  scrollBtn.addEventListener("click", () => { chatHistory?.scrollTo({ top: chatHistory.scrollHeight, behavior: "smooth" }); });
+
+  const scrollToLatest = () => {
+    if (!chatHistory) return;
+    chatHistory.scrollTo({ top: chatHistory.scrollHeight, behavior: "smooth" });
+  };
+
+  scrollBtn.addEventListener("click", scrollToLatest);
   chatHistory?.addEventListener("scroll", () => {
     const nearBottom = chatHistory.scrollHeight - chatHistory.scrollTop - chatHistory.clientHeight < 80;
     scrollBtn.style.display = nearBottom ? "none" : "flex";
