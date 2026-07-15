@@ -37,6 +37,30 @@
                 <span id="currentUserDisplay">Connecting...</span>
                 <span class="status-dot"></span>
             </div>
+
+            <div class="my-code-panel">
+                <h4>Your Invite Code</h4>
+                <p class="sidebar-tip small-tip">Share this with a friend so they can start a private chat with you. No one else can use it to read your chats.</p>
+                <div class="my-code-row">
+                    <span id="myInviteCode">------</span>
+                    <button id="copyCodeBtn" class="mini-btn" title="Copy code">📋</button>
+                </div>
+                <button id="regenCodeBtn" class="mini-btn-text">Generate New Code</button>
+            </div>
+
+            <div class="chats-panel">
+                <div class="chats-panel-header">
+                    <h4>Chats</h4>
+                    <button id="newPrivateChatBtn" class="mini-btn" title="Start a private chat">➕</button>
+                </div>
+                <div id="chatsList">
+                    <div class="chat-list-item active" data-room="global" data-name="Global Chat">
+                        <div class="mini-avatar" style="background:var(--accent)">🌐</div>
+                        <span>Global Chat</span>
+                    </div>
+                </div>
+            </div>
+
             <div class="active-users-panel">
                 <h4>Online Users</h4>
                 <div id="onlineUsersList"></div>
@@ -48,8 +72,11 @@
     <main class="chat-container" id="chatContainer">
         <header class="chat-header">
             <div class="header-details">
-                <h1>💬 Chat Room</h1>
-                <p id="mobileUserDisplay">Active Session</p>
+                <button id="menuToggleBtn" class="secondary-btn menu-toggle-btn" title="Chats">☰</button>
+                <div>
+                    <h1 id="chatRoomTitle">🌐 Global Chat</h1>
+                    <p id="mobileUserDisplay">Active Session</p>
+                </div>
             </div>
             <div class="header-actions">
                 <button id="decFontBtn" class="secondary-btn" title="Decrease Font">A-</button>
@@ -90,6 +117,17 @@
             </div>
         </footer>
     </main>
+</div>
+
+<div id="joinCodeModal" class="modal hidden-modal">
+    <div class="modal-content">
+        <h2>Start Private Chat</h2>
+        <p>Enter your friend's invite code. This opens a private chat only the two of you can see — it won't show up in Global Chat.</p>
+        <input type="text" id="joinCodeInput" placeholder="e.g., A1B2C3">
+        <button id="joinCodeBtn">Start Private Chat</button>
+        <button id="cancelJoinCodeBtn" class="secondary-btn full-width-btn">Cancel</button>
+        <p id="joinCodeError" class="error-text hidden"></p>
+    </div>
 </div>
 
 <div id="zoomModal" class="zoom-modal hidden">
