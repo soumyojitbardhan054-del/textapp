@@ -36,10 +36,10 @@ let currentScale = 1;
 const themes = ["#1e2330", "#2c1a30", "#1a2e26", "#301a1a"];
 let currentThemeIndex = parseInt(localStorage.getItem("chat_theme_index")) || 0;
 
-// Dynamic Font Size Configuration (Mega Small & Mega Big Limits)
+// Dynamic Font Size Configuration (Microscopic & Giant Limits)
 let currentFontSize = parseInt(localStorage.getItem('chatFontSize')) || 22; 
-const minFontSize = 8;   // Mega small (Microscopic mode)
-const maxFontSize = 46;  // Mega big (Absolute giant mode)
+const minFontSize = 8;
+const maxFontSize = 46;
 
 let targetEndTimestamp = 0;
 let godIsActive = true;
@@ -49,7 +49,7 @@ let warningTwoMinSent = false;
 let globalTimerDisplayString = "";
 let globalTypingDisplayString = "";
 
-// Helper function to dynamically update the font size across the chat
+// Dynamically inject custom variable rules for fluid text resizing
 function applyChatFontSize(size) {
   let styleEl = document.getElementById('dynamic-font-style');
   if (!styleEl) {
@@ -68,7 +68,7 @@ function applyChatFontSize(size) {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  // Apply the saved or default font size immediately on load
+  // Apply saved font configurations instantly
   applyChatFontSize(currentFontSize);
 
   const nameModal = document.getElementById("nameModal");
@@ -97,14 +97,13 @@ document.addEventListener("DOMContentLoaded", () => {
   const themeBtn = document.getElementById("themeBtn");
   const clearChatBtn = document.getElementById("clearChatBtn");
   
-  // Font Size Buttons
   const incFontBtn = document.getElementById("incFontBtn");
   const decFontBtn = document.getElementById("decFontBtn");
 
   const onlineUsersList = document.getElementById("onlineUsersList");
   const typingIndicator = document.getElementById("typingIndicator");
 
-  // FIXED: Force the lightbox overlay to hidden on boot up. This drops any unhandled blocking on desktop views.
+  // Lightbox view state reset
   if (zoomModal) {
     zoomModal.classList.add("hidden");
   }
@@ -374,7 +373,6 @@ document.addEventListener("DOMContentLoaded", () => {
   onSnapshot(qMessages, (snapshot) => {
     if (!chatHistory) return;
     
-    // Smoothly drop skeleton wrapper on original content snapshot loads
     chatHistory.innerHTML = "";
 
     if (snapshot.empty) {
@@ -614,7 +612,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // --- Theme & Font Settings Events ---
   if (themeBtn && chatContainer) {
     themeBtn.addEventListener("click", () => {
       currentThemeIndex = (currentThemeIndex + 1) % themes.length;
@@ -638,7 +635,6 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     });
   }
-  // ------------------------------------
 
   if (clearChatBtn) {
     clearChatBtn.addEventListener("click", async () => {
