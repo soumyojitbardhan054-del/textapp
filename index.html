@@ -2,220 +2,141 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Workspace Chatroom</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Chat App</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<div id="nameModal" class="modal">
-    <div class="modal-content">
-        <div class="modal-brand">
-            <div class="brand-glow"></div>
-            <svg class="brand-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-            </svg>
-        </div>
-        <h2>Setup Identity</h2>
-        <p>Choose your display handle and dynamic terminal accent color to enter the channel.</p>
+    <div class="app-layout">
         
-        <div class="input-group">
-            <input type="text" id="usernameInput" placeholder="e.g., Ghost or Jia" maxlength="15" autocomplete="off">
-            <div id="setupFeedback" class="feedback-msg"></div>
-        </div>
-        
-        <div class="color-picker-section">
-            <div class="color-picker-label">Terminal Accent Color</div>
-            <div class="avatar-color-picker">
-                <div class="color-dot selected" data-color="#00d2d3" style="background: #00d2d3;"></div>
-                <div class="color-dot" data-color="#ff9f43" style="background: #ff9f43;"></div>
-                <div class="color-dot" data-color="#ff6b6b" style="background: #ff6b6b;"></div>
-                <div class="color-dot" data-color="#1dd1a1" style="background: #1dd1a1;"></div>
-                <div class="color-dot" data-color="#a55eea" style="background: #a55eea;"></div>
-            </div>
-        </div>
-
-        <button id="saveNameBtn" class="primary-glow-btn">Initialize Connection</button>
-    </div>
-</div>
-
-<div id="forwardModal" class="modal hidden-modal">
-    <div class="modal-content text-left-override">
-        <h2>Forward Message</h2>
-        <p>Select an active terminal instance to route this packet.</p>
-        
-        <div class="forward-users-directory custom-scrollbar" id="forwardUsersList">
-            <div class="empty-directory-text">No other active connections available.</div>
-        </div>
-        
-        <div class="modal-footer-actions">
-            <button id="cancelForwardBtn" class="secondary-btn">Cancel</button>
-        </div>
-    </div>
-</div>
-
-<div class="app-layout">
-    
-    <aside class="sidebar" id="appSidebar">
-        <div class="sidebar-header">
-            <div class="logo-wrapper">
-                <div class="pulse-ring"></div>
-                <h3>CORE WORKSPACE</h3>
-            </div>
-        </div>
-        
-        <div class="sidebar-info custom-scrollbar">
-            <div class="user-card">
-                <div class="user-card-meta">
-                    <span class="status-dot online-pulse"></span>
-                    <span id="currentUserDisplay">Connecting...</span>
-                </div>
+        <aside class="sidebar" id="appSidebar">
+            <div class="sidebar-header">
+                <h3>Workspace</h3>
             </div>
             
-            <div class="active-users-panel" id="presencePanel">
-                <div class="panel-header" id="togglePresenceBtn">
-                    <h4>Active Terminals</h4>
-                    <span class="live-badge">Live</span>
+            <div class="sidebar-info">
+                <div class="user-card">
+                    <span id="currentUserDisplay">Ace</span>
+                    <span class="status-dot"></span>
                 </div>
-                <div id="onlineUsersList">
-                    <div class="user-item-skeleton">
-                        <div class="avatar-skeleton"></div>
-                        <div class="line-skeleton"></div>
+
+                <div class="active-users-panel">
+                    <h4>Active Now</h4>
+                    <div id="onlineUsersList">
+                        </div>
+                </div>
+
+                <div class="sidebar-tip">
+                    Tip: Tap the menu button in the corner to toggle this panel on mobile screens.
+                </div>
+            </div>
+        </aside>
+
+        <main class="chat-container">
+            
+            <header class="chat-header">
+                <div class="header-left-group" style="display: flex; align-items: center; gap: 10px;">
+                    <button id="menuToggleBtn" class="secondary-btn" style="padding: 6px 10px; font-size: 16px;">☰</button>
+                    <h1>Global Chat</h1>
+                </div>
+
+                <div class="header-actions">
+                    <button id="decFontBtn" class="secondary-btn">A-</button>
+                    <button id="incFontBtn" class="secondary-btn">A+</button>
+                    <button id="clearChatBtn" class="danger-btn">Clear Canvas</button>
+                </div>
+            </header>
+
+            <div id="pinnedShelf" class="hidden">
+                <div id="pinnedTextScroller">
+                    📌 <b>Pinned:</b> <span id="pinnedContentPlaceholder">No pinned messages</span>
+                </div>
+                <div id="unpinShelfBtn" title="Unpin Message">✕</div>
+            </div>
+
+            <section id="chatHistory">
+                </section>
+
+            <div id="typingBanner" class="typing-banner hidden">
+                Someone is typing...
+            </div>
+
+            <div id="replyContextOverlay" class="context-overlay hidden">
+                <div class="context-overlay-content">
+                    <div class="context-overlay-details">
+                        <span class="context-overlay-title">Replying to <span id="replyTargetUser">User</span></span>
+                        <span id="replyTargetText" class="context-overlay-text">Message preview...</span>
                     </div>
                 </div>
+                <div id="cancelReplyBtn" class="context-overlay-close">✕</div>
             </div>
-            
-            <p class="sidebar-tip">Use prefix <strong>@ai</strong> to query the mainframe assistant from anywhere in the input.</p>
-        </div>
-    </aside>
 
-    <main class="chat-container" id="chatContainer">
-        
-        <header class="chat-header">
-            <div class="header-details">
-                <div class="title-row">
-                    <svg class="header-status-icon" fill="currentColor" viewBox="0 0 8 8" width="8" height="8"><circle cx="4" cy="4" r="3"/></svg>
-                    <h1>Secure Mainframe Channel</h1>
+            <div id="editContextOverlay" class="context-overlay hidden">
+                <div class="context-overlay-content">
+                    <div class="context-overlay-details">
+                        <span class="context-overlay-title">Editing Message</span>
+                        <span id="editTargetText" class="context-overlay-text">Original text...</span>
+                    </div>
                 </div>
-                <p id="mobileUserDisplay">Active Session</p>
-            </div>
-            
-            <div class="header-search-box">
-                <svg class="search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                </svg>
-                <input type="text" id="chatSearchInput" placeholder="Filter historic buffers..." autocomplete="off">
-                <span id="clearSearchBtn" class="clear-search-x hidden">✕</span>
-            </div>
-            
-            <div class="header-actions">
-                <button id="decFontBtn" class="secondary-btn icon-btn" title="Decrease Code Font">
-                    <span class="btn-text">A-</span>
-                </button>
-                <button id="incFontBtn" class="secondary-btn icon-btn" title="Increase Code Font">
-                    <span class="btn-text">A+</span>
-                </button>
-                <div class="action-divider"></div>
-                <button id="changeNameBtn" class="secondary-btn" title="Edit Terminal Credentials">
-                    <span>Identity</span>
-                </button>
-                <button id="themeBtn" class="secondary-btn" title="Cycle Base Themes">
-                    <span>Palette</span>
-                </button>
-                <button id="clearChatBtn" class="danger-btn" title="Emergency Logs Wipe">
-                    <span>Purge Logs</span>
-                </button>
-            </div>
-        </header>
-
-        <div id="pinnedShelf" class="pinned-messages-shelf hidden">
-            <span class="pinned-shelf-icon">📌</span>
-            <div class="pinned-shelf-carousel">
-                <div id="pinnedTextScroller" class="pinned-text-scroller">
-                    No active parameters pinned currently.
-                </div>
-            </div>
-            <button id="unpinShelfBtn" class="unpin-shelf-action-btn" title="Dismiss Pinned Buffer">✕</button>
-        </div>
-
-        <div id="chatHistory" class="custom-scrollbar">
-            <div class="skeleton-wrapper">
-                <div class="bubble-skeleton incoming"></div>
-                <div class="bubble-skeleton outgoing"></div>
-            </div>
-        </div>
-
-        <div id="typingIndicator" class="typing-banner hidden"></div>
-
-        <footer class="input-area">
-            
-            <div id="replyContextOverlay" class="quote-context-overlay hidden">
-                <div class="quote-bar-accent"></div>
-                <div class="quote-overlay-details">
-                    <div class="quote-overlay-title">Replying to <span id="replyTargetUser">User</span></div>
-                    <div id="replyTargetText" class="quote-overlay-text">Staged reference excerpt...</div>
-                </div>
-                <button id="closeReplyContextBtn" class="close-overlay-btn">✕</button>
+                <div id="cancelEditBtn" class="context-overlay-close">✕</div>
             </div>
 
-            <div id="editContextOverlay" class="edit-context-overlay hidden">
-                <div class="edit-bar-accent"></div>
-                <div class="edit-overlay-details">
-                    <div class="edit-overlay-title">Editing Transmitted Package</div>
-                    <div id="editTargetText" class="edit-overlay-text">Staged edit message packet context...</div>
-                </div>
-                <button id="closeEditContextBtn" class="close-overlay-btn">✕</button>
-            </div>
-
-            <div id="imagePreviewContainer" class="hidden">
-                <div class="preview-wrapper">
-                    <img id="imagePreview" src="" alt="Packet payload preview">
+            <footer class="input-area">
+                <div id="imagePreviewContainer" class="hidden">
+                    <img id="imagePreview" src="" alt="Attachment Preview">
                     <span id="cancelImage">✕</span>
                 </div>
-            </div>
-            
-            <div class="action-bar-container">
-                <div class="action-bar">
-                    <label for="cameraInput" class="file-label" title="Capture & Transmit Image">
-                        <svg class="btn-svg" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path>
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                        </svg>
-                    </label>
-                    <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display: none;">
 
-                    <label for="imageInput" class="file-label" title="Attach Binary Image Payload">
-                        <svg class="btn-svg" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                        </svg>
-                    </label>
-                    <input type="file" id="imageInput" accept="image/*" style="display: none;">
+                <div class="action-bar">
+                    <label for="imageUpload" class="file-label" title="Attach Image">📎</label>
+                    <input type="file" id="imageUpload" accept="image/*" class="hidden">
                     
-                    <input type="text" id="message" placeholder="Transmit data packet or interact with @ai..." autocomplete="off">
+                    <input type="text" id="message" placeholder="Type a message..." autocomplete="off">
                     
-                    <button id="sendBtn" class="interactive-send-btn" title="Dispatch Packet">
-                        <svg viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                    <button id="sendBtn" title="Send Message">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path>
                         </svg>
                     </button>
                 </div>
+            </footer>
+
+            <button id="scrollBottomBtn" title="Scroll to bottom">↓</button>
+        </main>
+
+    </div>
+
+    <div id="identityModal" class="modal">
+        <div class="modal-content">
+            <h2>Welcome!</h2>
+            <p>Set up your profile to start chatting</p>
+            <input type="text" id="usernameInput" placeholder="Enter nickname..." maxlength="15" required>
+            
+            <div class="color-picker-label">Choose Avatar Color:</div>
+            <div class="avatar-color-picker">
+                <div class="color-dot selected" style="background-color: #ff6b6b;" data-color="#ff6b6b"></div>
+                <div class="color-dot" style="background-color: #00d2d3;" data-color="#00d2d3"></div>
+                <div class="color-dot" style="background-color: #ffd2d2;" data-color="#ffd2d2"></div>
+                <div class="color-dot" style="background-color: #10ac84;" data-color="#10ac84"></div>
+                <div class="color-dot" style="background-color: #54a0ff;" data-color="#54a0ff"></div>
             </div>
-        </footer>
-    </main>
-</div>
 
-<div id="zoomModal" class="zoom-modal hidden">
-    <span id="closeZoom" class="close-zoom">✕</span>
-    <div class="swipe-container">
-        <img id="zoomedImage" src="" alt="High fidelity Expanded Payload">
+            <button id="saveIdentityBtn">Join Chat</button>
+        </div>
     </div>
-    <div class="viewer-navigation-info">Image expanded payload</div>
-    <div class="zoom-controls">
-        <button id="zoomInBtn" class="control-btn-blur">➕ Zoom In</button>
-        <button id="zoomOutBtn" class="control-btn-blur">➖ Zoom Out</button>
-    </div>
-</div>
 
-<script type="module" src="script.js"></script>
+    <div id="imageZoomModal" class="zoom-modal hidden">
+        <span class="close-zoom" id="closeZoomBtn">✕</span>
+        <div class="zoom-wrapper">
+            <img id="zoomedImage" src="" alt="Zoomed View">
+        </div>
+        <div class="zoom-controls">
+            <button id="zoomInBtn">Zoom In (+)</button>
+            <button id="zoomOutBtn">Zoom Out (-)</button>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
 </body>
 </html>
