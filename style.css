@@ -11,8 +11,6 @@
     --bubble-them: #242b3d;
     --text-white: #ffffff;
     --text-muted: #8b97b0;
-    
-    /* Dynamically controlled by JS for direct inline sizing adjustments */
     --chat-font-size: 14px; 
 }
 
@@ -32,7 +30,6 @@ html, body {
     -webkit-tap-highlight-color: transparent;
 }
 
-/* Scrollbar Customization Engine */
 ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
@@ -44,9 +41,6 @@ html, body {
     background: rgba(255, 255, 255, 0.1);
     border-radius: 10px;
 }
-::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.2);
-}
 
 /* ==========================================================================
    2. APP LAYOUT CONTAINER
@@ -54,7 +48,7 @@ html, body {
 .app-layout {
     display: flex;
     width: 100vw;
-    height: 100dvh; /* Adapts cleanly to mobile address bars */
+    height: 100dvh;
     background: var(--bg-chat);
     overflow: hidden;
     position: relative;
@@ -84,7 +78,6 @@ html, body {
     font-size: 16px;
     font-weight: 700;
     color: var(--accent);
-    letter-spacing: 0.5px;
 }
 
 .sidebar-info {
@@ -96,7 +89,6 @@ html, body {
     overflow-y: auto;
 }
 
-/* Self User Card styling */
 .user-card {
     background: rgba(255, 255, 255, 0.03);
     padding: 12px 16px;
@@ -105,6 +97,7 @@ html, body {
     justify-content: space-between;
     align-items: center;
     border-left: 4px solid var(--accent);
+    cursor: pointer;
     transition: background 0.2s;
 }
 .user-card:hover {
@@ -124,7 +117,6 @@ html, body {
     box-shadow: 0 0 8px #10ac84;
 }
 
-/* Active Users Panel */
 .active-users-panel {
     display: flex;
     flex-direction: column;
@@ -151,10 +143,6 @@ html, body {
     gap: 12px;
     padding: 6px;
     border-radius: 8px;
-    transition: background 0.2s;
-}
-.online-user-item:hover {
-    background: rgba(255, 255, 255, 0.03);
 }
 
 .mini-avatar {
@@ -167,22 +155,17 @@ html, body {
     display: flex;
     justify-content: center;
     align-items: center;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
     flex-shrink: 0;
 }
 
 .user-item-details {
     display: flex;
     flex-direction: column;
-    overflow: hidden;
 }
 
 .user-item-handle {
     font-size: 13px;
     font-weight: 600;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
 .user-item-status-label {
@@ -210,7 +193,6 @@ html, body {
     position: relative;
 }
 
-/* Chat Header Area */
 .chat-header {
     background: var(--bg-side);
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
@@ -227,12 +209,10 @@ html, body {
     font-weight: 700;
 }
 
-/* Navigation Drawer Trigger (Hidden on Desktop) */
 #menuToggleBtn {
     display: none;
 }
 
-/* Universal Button Styles */
 .secondary-btn, .danger-btn {
     border: none;
     outline: none;
@@ -275,9 +255,7 @@ html, body {
     justify-content: space-between;
     align-items: center;
     backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
     z-index: 50;
-    animation: slideDown 0.25s ease-out;
 }
 
 #pinnedTextScroller {
@@ -285,7 +263,6 @@ html, body {
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
-    padding-right: 15px;
 }
 
 #pinnedTextScroller b {
@@ -296,11 +273,6 @@ html, body {
     cursor: pointer;
     color: var(--text-muted);
     font-size: 14px;
-    padding: 4px;
-    transition: color 0.2s;
-}
-#unpinShelfBtn:hover {
-    color: #ff6b6b;
 }
 
 /* ==========================================================================
@@ -315,7 +287,6 @@ html, body {
     gap: 16px;
 }
 
-/* System messages */
 .system-msg {
     align-self: center;
     background: rgba(255, 255, 255, 0.04);
@@ -326,13 +297,11 @@ html, body {
     font-style: italic;
 }
 
-/* Message layouts */
 .message-wrapper {
     display: flex;
     flex-direction: column;
     max-width: 65%;
     position: relative;
-    animation: slideUp 0.2s ease-out;
 }
 .message-wrapper.me {
     align-self: flex-end;
@@ -368,7 +337,7 @@ html, body {
     color: var(--text-muted);
 }
 
-/* Quick Reaction Bar on Hover */
+/* Hover Quick Reactions */
 .hover-reactions-quick-bar {
     position: absolute;
     top: -22px;
@@ -385,16 +354,13 @@ html, body {
 }
 .me .hover-reactions-quick-bar {
     right: 8px;
-    transform: translateY(5px);
 }
 .them .hover-reactions-quick-bar {
     left: 8px;
-    transform: translateY(5px);
 }
 .message-wrapper:hover .hover-reactions-quick-bar {
     opacity: 1;
     visibility: visible;
-    transform: translateY(0);
 }
 
 .quick-emoji {
@@ -408,17 +374,10 @@ html, body {
     transform: scale(1.3);
 }
 
-/* Chat bubble structures */
 .bubble-layout {
     display: flex;
     flex-direction: column;
     max-width: 100%;
-}
-.me .bubble-layout {
-    align-items: flex-end;
-}
-.them .bubble-layout {
-    align-items: flex-start;
 }
 
 .bubble {
@@ -428,7 +387,6 @@ html, body {
     line-height: 1.45;
     word-wrap: break-word;
     word-break: break-word;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 .me .bubble {
     background: var(--bubble-me);
@@ -442,50 +400,6 @@ html, body {
     border-top-left-radius: 2px;
 }
 
-.edited-annotation-tag {
-    font-size: 9px;
-    opacity: 0.5;
-    margin-left: 4px;
-    font-style: italic;
-}
-
-/* Quote Sub-element replies inside Chat History */
-.quote-snippet-preview {
-    display: flex;
-    gap: 8px;
-    background: rgba(0,0,0,0.2);
-    padding: 6px 12px;
-    border-radius: 8px;
-    margin-bottom: 4px;
-    font-size: 11px;
-    cursor: pointer;
-    max-width: 100%;
-}
-
-.quote-snippet-bar {
-    width: 3px;
-    border-radius: 2px;
-}
-
-.quote-snippet-details {
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-}
-
-.quote-snippet-sender {
-    font-weight: 700;
-    margin-bottom: 2px;
-}
-
-.quote-snippet-text {
-    color: var(--text-muted);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-/* Attached chat images */
 .chat-img {
     max-width: 100%;
     max-height: 200px;
@@ -493,10 +407,8 @@ html, body {
     margin-top: 6px;
     object-fit: cover;
     cursor: zoom-in;
-    border: 1px solid rgba(255,255,255,0.08);
 }
 
-/* Bubble interactions & subtext row */
 .bubble-sub {
     display: flex;
     align-items: center;
@@ -506,14 +418,10 @@ html, body {
     color: var(--text-muted);
 }
 
-.timestamp {
-    font-weight: 500;
-}
-
 .action-trigger {
     cursor: pointer;
     opacity: 0;
-    transition: opacity 0.2s, color 0.2s;
+    transition: opacity 0.2s;
 }
 .message-wrapper:hover .action-trigger {
     opacity: 0.6;
@@ -523,7 +431,6 @@ html, body {
     color: var(--accent);
 }
 
-/* Reaction pill buttons underneath bubbles */
 .active-reactions-pills-row {
     display: flex;
     flex-wrap: wrap;
@@ -542,26 +449,6 @@ html, body {
     align-items: center;
     gap: 4px;
     cursor: pointer;
-    transition: background 0.2s, border-color 0.2s;
-}
-.emoji-pill-btn:hover {
-    background: rgba(255,255,255,0.1);
-}
-.emoji-pill-btn.user-reacted {
-    background: rgba(0, 210, 211, 0.15);
-    border-color: var(--accent);
-}
-.react-counter {
-    font-weight: 700;
-}
-
-/* Pinned Jump Highlight Animation */
-@keyframes flashHighlight {
-    0% { background-color: rgba(0, 210, 211, 0.3); }
-    100% { background-color: transparent; }
-}
-.flash-highlight-active .bubble {
-    animation: flashHighlight 1.5s ease;
 }
 
 /* ==========================================================================
@@ -571,10 +458,8 @@ html, body {
     padding: 6px 24px;
     font-size: 12px;
     color: var(--accent);
-    font-weight: 500;
 }
 
-/* Reply/Edit Context Previews on Input */
 .context-overlay {
     background: #0f131a;
     border-top: 1px solid rgba(255,255,255,0.08);
@@ -588,7 +473,6 @@ html, body {
     display: flex;
     align-items: center;
     gap: 10px;
-    overflow: hidden;
 }
 
 .context-overlay-details {
@@ -598,8 +482,6 @@ html, body {
 
 .context-overlay-title {
     font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
     color: var(--accent);
     font-weight: 700;
 }
@@ -607,28 +489,17 @@ html, body {
 .context-overlay-text {
     font-size: 12px;
     color: var(--text-muted);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
 .context-overlay-close {
     cursor: pointer;
-    color: var(--text-muted);
     font-size: 14px;
-    padding: 4px;
-    transition: color 0.2s;
-}
-.context-overlay-close:hover {
-    color: #ff6b6b;
 }
 
-/* Text & Media Input Engine */
 .input-area {
     background: var(--bg-side);
     border-top: 1px solid rgba(255, 255, 255, 0.08);
     padding: 16px 24px;
-    flex-shrink: 0;
 }
 
 #imagePreviewContainer {
@@ -642,7 +513,6 @@ html, body {
     height: 60px;
     object-fit: cover;
     border-radius: 8px;
-    border: 2px solid var(--accent);
 }
 
 #cancelImage {
@@ -655,7 +525,6 @@ html, body {
     height: 18px;
     border-radius: 50%;
     font-size: 10px;
-    font-weight: 700;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -675,12 +544,6 @@ html, body {
 .file-label {
     font-size: 20px;
     cursor: pointer;
-    color: var(--text-muted);
-    transition: color 0.2s;
-    user-select: none;
-}
-.file-label:hover {
-    color: var(--accent);
 }
 
 #message {
@@ -690,15 +553,10 @@ html, body {
     outline: none;
     color: var(--text-white);
     font-size: var(--chat-font-size);
-    padding: 6px 0;
-}
-#message::placeholder {
-    color: var(--text-muted);
 }
 
 #sendBtn {
     background: var(--accent);
-    color: #0b0e14;
     border: none;
     outline: none;
     width: 32px;
@@ -708,16 +566,8 @@ html, body {
     justify-content: center;
     align-items: center;
     cursor: pointer;
-    transition: background 0.2s, transform 0.1s;
-}
-#sendBtn:hover {
-    background: var(--accent-hover);
-}
-#sendBtn:active {
-    transform: scale(0.92);
 }
 
-/* Floating Scroll-to-Bottom Button */
 #scrollBottomBtn {
     position: absolute;
     bottom: 90px;
@@ -728,16 +578,11 @@ html, body {
     background: var(--bg-side);
     border: 1px solid rgba(255,255,255,0.1);
     color: var(--accent);
-    display: none; /* Handled by JS */
+    display: none;
     justify-content: center;
     align-items: center;
     cursor: pointer;
     z-index: 99;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-    transition: background 0.2s;
-}
-#scrollBottomBtn:hover {
-    background: rgba(255,255,255,0.05);
 }
 
 /* ==========================================================================
@@ -753,12 +598,13 @@ html, body {
     width: 100vw;
     height: 100dvh;
     background: rgba(7, 9, 13, 0.96);
-    display: flex;
+    display: flex; 
     justify-content: center;
     align-items: center;
     z-index: 1000;
 }
 
+/* Fallback hiding support */
 .modal.hidden-modal {
     display: none !important;
 }
@@ -770,7 +616,6 @@ html, body {
     width: 320px;
     text-align: center;
     border: 1px solid rgba(255,255,255,0.08);
-    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
 }
 
 .modal-content h2 {
@@ -797,15 +642,6 @@ html, body {
     text-align: center;
     margin-bottom: 20px;
 }
-.modal-content input:focus {
-    border-color: var(--accent);
-}
-
-.color-picker-label {
-    font-size: 12px;
-    color: var(--text-muted);
-    margin-bottom: 10px;
-}
 
 .avatar-color-picker {
     display: flex;
@@ -820,7 +656,6 @@ html, body {
     border-radius: 50%;
     cursor: pointer;
     border: 2px solid transparent;
-    transition: transform 0.2s, border-color 0.2s;
 }
 .color-dot.selected {
     border-color: var(--text-white);
@@ -833,17 +668,11 @@ html, body {
     background: var(--accent);
     color: #0b0e14;
     font-weight: 700;
-    font-size: 14px;
     border: none;
     border-radius: 8px;
     cursor: pointer;
-    transition: background 0.2s;
-}
-.modal-content button:hover {
-    background: var(--accent-hover);
 }
 
-/* Lightbox Image Zoom overlays */
 .zoom-modal {
     position: fixed;
     top: 0; left: 0;
@@ -866,8 +695,6 @@ html, body {
     max-width: 100%;
     max-height: 100%;
     object-fit: contain;
-    border-radius: 4px;
-    transition: transform 0.2s ease-out;
 }
 
 .close-zoom {
@@ -879,43 +706,9 @@ html, body {
     color: var(--text-white);
 }
 
-.zoom-controls {
-    margin-top: 24px;
-    display: flex;
-    gap: 16px;
-}
-.zoom-controls button {
-    background: rgba(255,255,255,0.1);
-    color: white;
-    border: none;
-    padding: 8px 16px;
-    border-radius: 20px;
-    cursor: pointer;
-    font-size: 13px;
-    transition: background 0.2s;
-}
-.zoom-controls button:hover {
-    background: rgba(255,255,255,0.2);
-}
-
 /* ==========================================================================
-   9. STAGE ANIMATIONS
+   9. RESPONSIVE MEDIA VIEWPORTS
    ========================================================================== */
-@keyframes slideDown {
-    from { transform: translateY(-100%); opacity: 0; }
-    to { transform: translateY(0); opacity: 1; }
-}
-
-@keyframes slideUp {
-    from { transform: translateY(12px); opacity: 0; }
-    to { transform: translateY(0); opacity: 1; }
-}
-
-/* ==========================================================================
-   10. RESPONSIVE MEDIA VIEWPORTS
-   ========================================================================== */
-
-/* Tablets & Desktop Monitors */
 @media (min-width: 768px) {
     body {
         display: flex;
@@ -928,13 +721,10 @@ html, body {
         height: 85vh;
         border-radius: 16px;
         border: 1px solid rgba(255, 255, 255, 0.08);
-        box-shadow: 0 20px 60px rgba(0,0,0,0.6);
     }
 }
 
-/* Mobile Screens */
 @media (max-width: 767px) {
-    /* Show Sidebar Navigation Drawer triggers */
     #menuToggleBtn {
         display: block;
         background: transparent;
@@ -942,52 +732,26 @@ html, body {
         color: var(--text-white);
         font-size: 20px;
         cursor: pointer;
-        padding-right: 8px;
     }
 
-    /* Convert sidebar layout into a slide-over off-canvas menu */
     .sidebar {
         position: fixed;
         top: 0;
         left: 0;
         height: 100dvh;
-        transform: translateX(-100%); /* Keeps it hidden left of the screen */
-        box-shadow: 10px 0 30px rgba(0, 0, 0, 0.5);
+        transform: translateX(-100%);
     }
     
     .sidebar.open {
-        transform: translateX(0); /* Slides it in when active */
+        transform: translateX(0);
     }
 
-    /* Compress dimensions for tighter mobile header profile */
     .chat-header {
         height: 56px;
         padding: 0 16px;
     }
-    .chat-header h1 {
-        font-size: 16px;
-    }
-    
-    .secondary-btn, .danger-btn {
-        padding: 6px 10px;
-        font-size: 11px;
-    }
-
-    #chatHistory {
-        padding: 16px;
-        gap: 12px;
-    }
 
     .message-wrapper {
         max-width: 85%;
-    }
-
-    /* Optimize bottom entry area to avoid virtual keyboard clipping */
-    .input-area {
-        padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
-    }
-    
-    .action-bar {
-        padding: 4px 12px;
     }
 }
