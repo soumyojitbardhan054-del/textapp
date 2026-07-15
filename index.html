@@ -10,8 +10,9 @@
 
 <div id="nameModal" class="modal">
     <div class="modal-content">
-        <h2>Setup Identity</h2>
-        <p>Please enter your name and choose a profile color.</p>
+        <h2>Join Private Session</h2>
+        <p>Enter your identity details and choose a workspace.</p>
+        
         <input type="text" id="usernameInput" placeholder="e.g., brine or jia">
         
         <div class="color-picker-label">Pick Profile Accent:</div>
@@ -22,6 +23,11 @@
             <div class="color-dot" data-color="#1dd1a1" style="background: #1dd1a1;"></div>
             <div class="color-dot" data-color="#a55eea" style="background: #a55eea;"></div>
         </div>
+
+        <hr style="border: 0; border-top: 1px solid #2b313f; margin: 15px 0;">
+
+        <div class="color-picker-label">Invite Code Setup:</div>
+        <input type="text" id="roomCodeInput" placeholder="Enter 6-digit Room Code" maxlength="6" style="margin-bottom: 12px; font-family: monospace; letter-spacing: 2px;">
 
         <button id="saveNameBtn">Enter Chatroom</button>
     </div>
@@ -37,30 +43,9 @@
                 <span id="currentUserDisplay">Connecting...</span>
                 <span class="status-dot"></span>
             </div>
-
-            <div class="my-code-panel">
-                <h4>Your Invite Code</h4>
-                <p class="sidebar-tip small-tip">Share this with a friend so they can start a private chat with you. No one else can use it to read your chats.</p>
-                <div class="my-code-row">
-                    <span id="myInviteCode">------</span>
-                    <button id="copyCodeBtn" class="mini-btn" title="Copy code">📋</button>
-                </div>
-                <button id="regenCodeBtn" class="mini-btn-text">Generate New Code</button>
+            <div class="user-card" style="background: #1a202c; border: 1px solid #2b313f; margin-top: -5px;">
+                <span id="currentRoomDisplay" style="font-family: monospace; color: var(--accent);">Room: None</span>
             </div>
-
-            <div class="chats-panel">
-                <div class="chats-panel-header">
-                    <h4>Chats</h4>
-                    <button id="newPrivateChatBtn" class="mini-btn" title="Start a private chat">➕</button>
-                </div>
-                <div id="chatsList">
-                    <div class="chat-list-item active" data-room="global" data-name="Global Chat">
-                        <div class="mini-avatar" style="background:var(--accent)">🌐</div>
-                        <span>Global Chat</span>
-                    </div>
-                </div>
-            </div>
-
             <div class="active-users-panel">
                 <h4>Online Users</h4>
                 <div id="onlineUsersList"></div>
@@ -72,11 +57,8 @@
     <main class="chat-container" id="chatContainer">
         <header class="chat-header">
             <div class="header-details">
-                <button id="menuToggleBtn" class="secondary-btn menu-toggle-btn" title="Chats">☰</button>
-                <div>
-                    <h1 id="chatRoomTitle">🌐 Global Chat</h1>
-                    <p id="mobileUserDisplay">Active Session</p>
-                </div>
+                <h1>💬 Chat Room</h1>
+                <p id="mobileUserDisplay">Active Session</p>
             </div>
             <div class="header-actions">
                 <button id="decFontBtn" class="secondary-btn" title="Decrease Font">A-</button>
@@ -117,17 +99,6 @@
             </div>
         </footer>
     </main>
-</div>
-
-<div id="joinCodeModal" class="modal hidden-modal">
-    <div class="modal-content">
-        <h2>Start Private Chat</h2>
-        <p>Enter your friend's invite code. This opens a private chat only the two of you can see — it won't show up in Global Chat.</p>
-        <input type="text" id="joinCodeInput" placeholder="e.g., A1B2C3">
-        <button id="joinCodeBtn">Start Private Chat</button>
-        <button id="cancelJoinCodeBtn" class="secondary-btn full-width-btn">Cancel</button>
-        <p id="joinCodeError" class="error-text hidden"></p>
-    </div>
 </div>
 
 <div id="zoomModal" class="zoom-modal hidden">
