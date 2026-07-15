@@ -5,6 +5,87 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>GhostChat // Secure Terminal</title>
     <link rel="stylesheet" href="style.css">
+    
+    <style>
+        @media screen and (max-width: 768px) {
+            :root {
+                /* Reduce base spacing variables for mobile devices */
+                --bubble-padding: 8px 12px !important;
+                --sidebar-width: 0px !important; /* If sidebar collapses */
+            }
+            body {
+                font-size: 13px !important;
+            }
+            /* Scale down headers and buttons */
+            .chat-header {
+                padding: 8px 12px !important;
+                min-height: 50px !important;
+            }
+            .chat-header h1 {
+                font-size: 14px !important;
+            }
+            .chat-header p {
+                font-size: 10px !important;
+            }
+            .header-actions .secondary-btn, 
+            .header-actions .danger-btn {
+                padding: 6px 8px !important;
+                font-size: 11px !important;
+            }
+            .header-actions .btn-svg,
+            .header-actions .icon-btn svg {
+                width: 14px !important;
+                height: 14px !important;
+            }
+            /* Keep messages, bubbles, and spacing compact */
+            .message-wrapper {
+                margin-bottom: 8px !important;
+                padding: 0 10px !important;
+            }
+            .bubble {
+                padding: 8px 12px !important;
+                border-radius: 14px !important;
+                line-height: 1.35 !important;
+                max-width: 85% !important;
+            }
+            .user-avatar-circle {
+                width: 28px !important;
+                height: 28px !important;
+                font-size: 11px !important;
+            }
+            .sender-name {
+                font-size: 11px !important;
+            }
+            /* Compact input footer area */
+            .input-area {
+                padding: 8px 12px !important;
+            }
+            .action-bar {
+                padding: 4px 8px !important;
+                min-height: 40px !important;
+            }
+            .action-bar input[type="text"] {
+                font-size: 13px !important;
+                padding: 6px 8px !important;
+            }
+            .file-label svg, 
+            .interactive-send-btn svg {
+                width: 18px !important;
+                height: 18px !important;
+            }
+            /* Modal responsiveness */
+            .modal-content {
+                width: 90% !important;
+                padding: 20px !important;
+            }
+            .modal-content h2 {
+                font-size: 18px !important;
+            }
+            .modal-content p {
+                font-size: 12px !important;
+            }
+        }
+    </style>
 </head>
 <body>
 
