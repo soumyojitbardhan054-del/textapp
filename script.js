@@ -14,9 +14,7 @@ import {
   writeBatch
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-// ==========================================================================
-// 01. FIREBASE NETWORK ARCHITECTURE
-// ==========================================================================
+// Firebase Architecture Configuration Matrix
 const firebaseConfig = {
   apiKey: "AIzaSyAw5Bjo8hHrrwGy-bLYw-bVj6VxMxQikkY",
   authDomain: "texting-996fa.firebaseapp.com",
@@ -32,26 +30,26 @@ const messagesCollection = collection(db, "messages");
 const statusCollection = collection(db, "status");
 const usernamesCollection = collection(db, "users");
 
-// ==========================================================================
-// 02. SYSTEM STATE VARIABLES
-// ==========================================================================
+// Session Context Parameters
 let currentUsername = localStorage.getItem("chat_username") || "";
 let currentUserColor = localStorage.getItem("chat_user_color") || "#00d2d3";
 let selectedImageBase64 = "";
 let typingTimeout = null;
 let aiContextMemory = [];
 
-// Reply Context State Engine
-let replyToMessageId = null;
-let replyToSender = "";
-let replyToText = "";
+// Dynamic Interaction State Parameters
+let editMessageId = null;
+let replyMessageId = null;
+let replySender = "";
+let replyText = "";
+let savedGeneralDraft = ""; 
 
 // Theme & Viewport Scaling Configuration
 const themes = ["#1e2330", "#2c1a30", "#1a2e26", "#301a1a"];
 let currentThemeIndex = parseInt(localStorage.getItem("chat_theme_index")) || 0;
-let currentFontSize = parseInt(localStorage.getItem('chatFontSize')) || 13; // Lower base size for mobile matching the html style overrides
-const minFontSize = 10;
-const maxFontSize = 24;
+let currentFontSize = parseInt(localStorage.getItem('chatFontSize')) || 22;
+const minFontSize = 8;
+const maxFontSize = 46;
 
 // Swipe Gallery Context Variables
 let galleryImages = [];
@@ -71,11 +69,7 @@ function applyChatFontSize(size) {
     styleEl.id = 'dynamic-font-style';
     document.head.appendChild(styleEl);
   }
-  styleEl.innerHTML = `
-    .bubble, #message { font-size: ${size}px !important; }
-    /* Mobile Tap Visibility Overrides */
-    .message-wrapper.show-controls .bubble-sub { opacity: 1 !important; visibility: visible !important; display: flex !important; }
-  `;
+  styleEl.innerHTML = `.bubble, #message { font-size: ${size}px !important; }`;
   localStorage.setItem('chatFontSize', size);
 }
 
@@ -87,6 +81,73 @@ function checkAdminStatus(name) {
   const clean = name.trim().toLowerCase();
   return clean === "ace" || clean === "ghost";
 }
+
+// Inject structural styling for Contextual & Reaction features dynamically
+const dynamicStyleNode = document.createElement("style");
+dynamicStyleNode.id = "dynamic-contextual-styles";
+dynamicStyleNode.innerHTML = `
+  .quote-reply-block {
+    font-size: 12px;
+    background: rgba(255, 255, 255, 0.05);
+    border-left: 3px solid var(--accent);
+    padding: 6px 10px;
+    margin-bottom: 6px;
+    border-radius: 6px;
+    color: var(--text-muted);
+    text-align: left;
+    max-width: 100%;
+    cursor: pointer;
+  }
+  .quote-reply-block strong {
+    color: var(--text-white);
+  }
+  .bubble-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .bubble-actions span {
+    cursor: pointer;
+    opacity: 0.5;
+    transition: var(--transition-smooth);
+    user-select: none;
+  }
+  .bubble-actions span:hover {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+  .msg-reactions-container {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    margin-top: 6px;
+  }
+  .reaction-pill {
+    display: inline-flex;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 2px 6px;
+    font-size: 11px;
+    cursor: pointer;
+    transition: var(--transition-smooth);
+    color: var(--text-muted);
+  }
+  .reaction-pill:hover {
+    border-color: var(--accent);
+    background: rgba(255, 255, 255, 0.08);
+  }
+  .reaction-pill.active {
+    background: var(--accent-glow) !important;
+    border-color: var(--accent) !important;
+    color: var(--accent) !important;
+  }
+  .emoji-picker-popup {
+    transition: opacity 0.15s ease;
+  }
+`;
+document.head.appendChild(dynamicStyleNode);
 
 document.addEventListener("DOMContentLoaded", () => {
   applyChatFontSize(currentFontSize);
@@ -125,100 +186,38 @@ document.addEventListener("DOMContentLoaded", () => {
   const onlineUsersList = document.getElementById("onlineUsersList");
   const typingIndicator = document.getElementById("typingIndicator");
 
+  // Thread UI Banner Caches
+  const activeContextBanner = document.getElementById("activeContextBanner");
+  const contextTypeLabel = document.getElementById("contextTypeLabel");
+  const contextTextPreview = document.getElementById("contextTextPreview");
+  const cancelContextBtn = document.getElementById("cancelContextBtn");
+
   if (chatContainer) chatContainer.style.backgroundColor = themes[currentThemeIndex];
   if (messageArea) messageArea.value = localStorage.getItem("chat_draft") || "";
 
-  // ==========================================================================
-  // 03. REPLY SYSTEM UI INJECTION & MANAGER
-  // ==========================================================================
-  function getOrCreateReplyContainer() {
-    let replyBox = document.getElementById("replyContainer");
-    if (!replyBox) {
-      const inputArea = document.querySelector(".input-area");
-      const actionBarContainer = document.querySelector(".action-bar-container");
-      if (inputArea && actionBarContainer) {
-        replyBox = document.createElement("div");
-        replyBox.id = "replyContainer";
-        replyBox.className = "reply-container hidden";
-        replyBox.innerHTML = `
-          <div class="reply-content">
-            <svg class="reply-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="pointer-events: none;"><path d="M9 17H7A5 5 0 0 1 7 7h10a5 5 0 0 1 0 10H13M9 17l4-4M9 17l4 4"/></svg>
-            <div class="reply-details">
-              <span class="reply-label" id="replyLabel">Replying to Username</span>
-              <span class="reply-text-preview" id="replyPreview">Preview Message</span>
-            </div>
-          </div>
-          <button type="button" class="cancel-reply-btn" id="cancelReplyBtn" title="Cancel Reply">✕</button>
-        `;
-        inputArea.insertBefore(replyBox, actionBarContainer);
-        
-        // Add robust click/touch listener for canceling replies
-        const cancelBtn = document.getElementById("cancelReplyBtn");
-        cancelBtn.addEventListener("click", (e) => {
-          e.preventDefault();
-          clearReplyContext();
-        });
-        cancelBtn.addEventListener("touchstart", (e) => {
-          e.preventDefault();
-          clearReplyContext();
-        }, { passive: false });
-      }
-    }
-    return replyBox;
-  }
-
-  function initiateReply(id, sender, text) {
-    replyToMessageId = id;
-    replyToSender = sender;
-    replyToText = text;
-
-    const replyBox = getOrCreateReplyContainer();
-    if (replyBox) {
-      document.getElementById("replyLabel").textContent = `Replying to @${sender}`;
-      document.getElementById("replyPreview").textContent = text || "[Image Asset]";
-      replyBox.classList.remove("hidden");
-    }
-    if (messageArea) messageArea.focus();
-  }
-
-  function clearReplyContext() {
-    replyToMessageId = null;
-    replyToSender = "";
-    replyToText = "";
-    const replyBox = document.getElementById("replyContainer");
-    if (replyBox) {
-      replyBox.classList.add("hidden");
-    }
-  }
-
-  // ==========================================================================
-  // 04. SIDEBAR & IDENTITY CONTROLS
-  // ==========================================================================
+  // Dynamic Toggle Support for Active Terminals Container Panel
   const activeUsersPanel = document.querySelector(".active-users-panel");
   const panelHeader = document.querySelector(".panel-header");
   if (panelHeader && activeUsersPanel) {
-    const togglePanel = () => activeUsersPanel.classList.toggle("minimized");
-    panelHeader.addEventListener("click", togglePanel);
-    panelHeader.addEventListener("touchstart", (e) => {
-      e.preventDefault();
-      togglePanel();
-    }, { passive: false });
+    panelHeader.addEventListener("click", () => {
+      activeUsersPanel.classList.toggle("minimized");
+    });
   }
 
+  // Setup Identity Palette Selectors
   document.querySelectorAll(".color-dot").forEach(dot => {
     if (dot.getAttribute("data-color") === currentUserColor) {
       document.querySelectorAll(".color-dot").forEach(d => d.classList.remove("selected"));
       dot.classList.add("selected");
     }
-    const selectColor = (e) => {
+    dot.addEventListener("click", (e) => {
       document.querySelectorAll(".color-dot").forEach(d => d.classList.remove("selected"));
       e.target.classList.add("selected");
       currentUserColor = e.target.getAttribute("data-color");
-    };
-    dot.addEventListener("click", selectColor);
-    dot.addEventListener("touchstart", selectColor, { passive: true });
+    });
   });
 
+  // Unique Username Live Checker Pipeline
   let lookupTimeout = null;
   if (usernameInput) {
     usernameInput.addEventListener("input", () => {
@@ -248,6 +247,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  // Network Presence Sync Dispatches
   async function updatePresence(isOnline, isTyping = false, oldName = "") {
     if (!currentUsername) return;
     if (oldName && oldName.toLowerCase() !== currentUsername.toLowerCase()) {
@@ -306,6 +306,7 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
       
+      // Lease Unique Name Signature inside Firestore Node
       await setDoc(docRef, { uid: "active_user", timestamp: Date.now() });
       if (currentUsername) {
         const oldDocRef = doc(usernamesCollection, currentUsername.toLowerCase().replace(/\s+/g, '_'));
@@ -326,22 +327,17 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (saveNameBtn) {
     saveNameBtn.addEventListener("click", handleUserSetupSave);
-    saveNameBtn.addEventListener("touchstart", (e) => { e.preventDefault(); handleUserSetupSave(); }, { passive: false });
   }
 
   if (changeNameBtn && usernameInput && nameModal) {
-    const showIdentityModal = () => {
+    changeNameBtn.addEventListener("click", () => {
       usernameInput.value = currentUsername;
       usernameFeedback.textContent = "";
       nameModal.classList.remove("hidden-modal");
-    };
-    changeNameBtn.addEventListener("click", showIdentityModal);
-    changeNameBtn.addEventListener("touchstart", (e) => { e.preventDefault(); showIdentityModal(); }, { passive: false });
+    });
   }
 
-  // ==========================================================================
-  // 05. MEDIA PROCESSING & LIGHTBOX SWIPE LOGIC
-  // ==========================================================================
+  // Mobile Gallery & Camera Base64 Downscaler Processors
   function compressImage(file) {
     return new Promise((resolve) => {
       const reader = new FileReader();
@@ -353,7 +349,7 @@ document.addEventListener("DOMContentLoaded", () => {
           const canvas = document.createElement("canvas");
           let width = img.width;
           let height = img.height;
-          const MAX_SIZE = 500; 
+          const MAX_SIZE = 500; // Optimized size envelope for low latency delivery
           if (width > height && width > MAX_SIZE) { height *= MAX_SIZE / width; width = MAX_SIZE; }
           else if (height > MAX_SIZE) { width *= MAX_SIZE / height; height = MAX_SIZE; }
           canvas.width = width; canvas.height = height;
@@ -375,16 +371,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (imageInput) imageInput.addEventListener("change", async (e) => { if (e.target.files.length > 0) await processSelectedFile(e.target.files[0]); });
   if (cameraInput) cameraInput.addEventListener("change", async (e) => { if (e.target.files.length > 0) await processSelectedFile(e.target.files[0]); });
-  
   if (cancelImage) {
-    const clearMedia = () => {
+    cancelImage.addEventListener("click", () => {
       selectedImageBase64 = "";
       if (imageInput) imageInput.value = "";
       if (cameraInput) cameraInput.value = "";
       if (imagePreviewContainer) imagePreviewContainer.classList.add("hidden");
-    };
-    cancelImage.addEventListener("click", clearMedia);
-    cancelImage.addEventListener("touchstart", (e) => { e.preventDefault(); clearMedia(); }, { passive: false });
+    });
   }
 
   async function purgeChatRoomLogs() {
@@ -399,6 +392,9 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  // ==========================================
+  // HYPER-COMPATIBLE MOBILE SWIPE CAROUSEL ENGINE
+  // ==========================================
   function setupLightboxIndex(idx) {
     if (idx < 0 || idx >= galleryImages.length) return;
     currentGalleryIndex = idx;
@@ -410,9 +406,183 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  // Active Context Controllers
+  function setContext(type, msgId, text, sender = "", color = "var(--accent)") {
+    if (!messageArea || !activeContextBanner) return;
+
+    if (!editMessageId && !replyMessageId) {
+      savedGeneralDraft = messageArea.value;
+    }
+
+    if (type === "edit") {
+      editMessageId = msgId;
+      replyMessageId = null;
+      contextTypeLabel.textContent = "Editing Message:";
+      contextTextPreview.textContent = text;
+      messageArea.value = text;
+      messageArea.focus();
+    } else if (type === "reply") {
+      replyMessageId = msgId;
+      editMessageId = null;
+      replySender = sender;
+      replyText = text;
+      contextTypeLabel.textContent = `Replying to @${sender}:`;
+      contextTextPreview.textContent = text;
+      messageArea.value = ""; 
+      messageArea.focus();
+    }
+
+    activeContextBanner.classList.remove("hidden");
+  }
+
+  function clearContext() {
+    if (activeContextBanner) activeContextBanner.classList.add("hidden");
+    if (editMessageId || replyMessageId) {
+      messageArea.value = savedGeneralDraft;
+    }
+    editMessageId = null;
+    replyMessageId = null;
+    replySender = "";
+    replyText = "";
+  }
+
+  if (cancelContextBtn) {
+    cancelContextBtn.addEventListener("click", clearContext);
+  }
+
+  // Dynamically Toggles Reaction Map In Firestore
+  async function toggleEmojiReaction(msgId, emoji) {
+    if (!currentUsername) return;
+    const docRef = doc(db, "messages", msgId);
+    const docSnap = await getDoc(docRef);
+    if (!docSnap.exists()) return;
+
+    const data = docSnap.data();
+    const reactions = data.reactions || {};
+
+    if (!reactions[emoji]) {
+      reactions[emoji] = [];
+    }
+
+    const userIdx = reactions[emoji].indexOf(currentUsername);
+    if (userIdx > -1) {
+      reactions[emoji].splice(userIdx, 1);
+    } else {
+      reactions[emoji].push(currentUsername);
+    }
+
+    if (reactions[emoji].length === 0) {
+      delete reactions[emoji];
+    }
+
+    await setDoc(docRef, { reactions }, { merge: true });
+  }
+
+  // Dynamic Custom Floating Emoji Picker Node Generation
+  function showEmojiPicker(targetElement, msgId) {
+    const existing = document.querySelector(".emoji-picker-popup");
+    if (existing) existing.remove();
+
+    const picker = document.createElement("div");
+    picker.className = "emoji-picker-popup";
+    picker.style.cssText = `
+      position: absolute;
+      background: var(--bg-side);
+      border: 1px solid var(--border-glow);
+      border-radius: 20px;
+      padding: 6px 10px;
+      display: flex;
+      gap: 8px;
+      z-index: 1000;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+    `;
+
+    const emojis = ["👍", "❤️", "😂", "😮", "😢", "🔥"];
+    emojis.forEach(emoji => {
+      const btn = document.createElement("span");
+      btn.textContent = emoji;
+      btn.style.cssText = "cursor: pointer; font-size: 16px; transition: transform 0.1s;";
+      btn.addEventListener("mouseover", () => btn.style.transform = "scale(1.3)");
+      btn.addEventListener("mouseout", () => btn.style.transform = "scale(1.0)");
+      btn.addEventListener("click", async () => {
+        await toggleEmojiReaction(msgId, emoji);
+        picker.remove();
+      });
+      picker.appendChild(btn);
+    });
+
+    document.body.appendChild(picker);
+
+    const rect = targetElement.getBoundingClientRect();
+    picker.style.top = `${rect.top + window.scrollY - 40}px`;
+    picker.style.left = `${rect.left + window.scrollX - 20}px`;
+
+    const closeHandler = (e) => {
+      if (!picker.contains(e.target) && e.target !== targetElement) {
+        picker.remove();
+        document.removeEventListener("click", closeHandler);
+      }
+    };
+    setTimeout(() => document.addEventListener("click", closeHandler), 50);
+  }
+
+  if (chatHistory) {
+    chatHistory.addEventListener("click", async (e) => {
+      if (e.target.classList.contains("delete-single-btn")) {
+        const idToDelete = e.target.getAttribute("data-id");
+        if (idToDelete && confirm("Purge message package node?")) {
+          await deleteDoc(doc(db, "messages", idToDelete));
+        }
+      }
+
+      // Context Edit Activation Event
+      if (e.target.classList.contains("edit-btn")) {
+        const msgId = e.target.getAttribute("data-id");
+        const origMsg = decodeURIComponent(e.target.getAttribute("data-msg"));
+        setContext("edit", msgId, origMsg);
+      }
+
+      // Context Reply Activation Event
+      if (e.target.classList.contains("reply-btn")) {
+        const msgId = e.target.getAttribute("data-id");
+        const sender = decodeURIComponent(e.target.getAttribute("data-sender"));
+        const origMsg = decodeURIComponent(e.target.getAttribute("data-msg"));
+        setContext("reply", msgId, origMsg, sender);
+      }
+
+      // Quick-React Action Picker Activation Event
+      if (e.target.classList.contains("react-trigger")) {
+        const msgId = e.target.getAttribute("data-id");
+        showEmojiPicker(e.target, msgId);
+      }
+
+      // Inline Reaction Pill Click Handler
+      const reactionPill = e.target.closest(".reaction-pill");
+      if (reactionPill) {
+        const msgId = reactionPill.getAttribute("data-id");
+        const emoji = reactionPill.getAttribute("data-emoji");
+        if (msgId && emoji) {
+          await toggleEmojiReaction(msgId, emoji);
+        }
+      }
+
+      if (e.target.classList.contains("chat-img")) {
+        const activeSrc = e.target.src;
+        // Collect all image references currently active on history canvas
+        galleryImages = Array.from(document.querySelectorAll(".chat-img")).map(img => img.src);
+        const findIdx = galleryImages.indexOf(activeSrc);
+        if (zoomModal) {
+          zoomModal.classList.remove("hidden");
+          setupLightboxIndex(findIdx !== -1 ? findIdx : 0);
+        }
+      }
+    });
+  }
+
+  // Mobile Friendly Touch Events Supporting Passive Interceptions
   if (swipeContainer) {
     swipeContainer.addEventListener("touchstart", (e) => {
-      if (currentScale > 1) return;
+      if (currentScale > 1) return; // Disable structural transitions if user is magnified
       isSwiping = true;
       swipeStartX = e.touches[0].clientX;
       swipeCurrentX = swipeStartX;
@@ -427,7 +597,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!isSwiping) return;
       isSwiping = false;
       const deltaX = swipeCurrentX - swipeStartX;
-      if (Math.abs(deltaX) > 50) { 
+      if (Math.abs(deltaX) > 50) { // Threshold optimization for fast, highly fluid mobile interactions
         if (deltaX > 0) {
           if (currentGalleryIndex > 0) setupLightboxIndex(currentGalleryIndex - 1);
         } else {
@@ -439,65 +609,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (zoomInBtn) zoomInBtn.addEventListener("click", () => { const targetImg = document.getElementById("zoomedImage"); if (targetImg) { currentScale += 0.3; targetImg.style.transform = `scale(${currentScale})`; } });
   if (zoomOutBtn) zoomOutBtn.addEventListener("click", () => { const targetImg = document.getElementById("zoomedImage"); if (targetImg && currentScale > 0.6) { currentScale -= 0.3; targetImg.style.transform = `scale(${currentScale})`; } });
-  if (closeZoom) {
-    closeZoom.addEventListener("click", () => zoomModal.classList.add("hidden"));
-    closeZoom.addEventListener("touchstart", (e) => { e.preventDefault(); zoomModal.classList.add("hidden"); }, { passive: false });
-  }
+  if (closeZoom) closeZoom.addEventListener("click", () => zoomModal.classList.add("hidden"));
 
-  // ==========================================================================
-  // 06. CHAT HISTORY TAP & TOUCH CONTROLS
-  // ==========================================================================
-  const handleMessageInteraction = async (e) => {
-    // 1. Handle mobile tap-to-reveal on chat bubbles
-    const wrapper = e.target.closest(".message-wrapper");
-    if (wrapper && !e.target.classList.contains("delete-single-btn") && !e.target.classList.contains("reply-btn") && !e.target.classList.contains("chat-img")) {
-      const wasActive = wrapper.classList.contains("show-controls");
-      document.querySelectorAll(".message-wrapper").forEach(w => w.classList.remove("show-controls"));
-      if (!wasActive) {
-        wrapper.classList.add("show-controls");
-      }
-    }
-
-    // 2. Handle message reply button
-    if (e.target.classList.contains("reply-btn")) {
-      e.preventDefault();
-      const idToReply = e.target.getAttribute("data-id");
-      const sender = e.target.getAttribute("data-sender");
-      const text = e.target.getAttribute("data-text");
-      initiateReply(idToReply, sender, text);
-    }
-
-    // 3. Handle message delete button
-    if (e.target.classList.contains("delete-single-btn")) {
-      e.preventDefault();
-      const idToDelete = e.target.getAttribute("data-id");
-      if (idToDelete && confirm("Purge message package node?")) {
-        await deleteDoc(doc(db, "messages", idToDelete));
-      }
-    }
-
-    // 4. Handle image zooming
-    if (e.target.classList.contains("chat-img")) {
-      const activeSrc = e.target.src;
-      galleryImages = Array.from(document.querySelectorAll(".chat-img")).map(img => img.src);
-      const findIdx = galleryImages.indexOf(activeSrc);
-      if (zoomModal) {
-        zoomModal.classList.remove("hidden");
-        setupLightboxIndex(findIdx !== -1 ? findIdx : 0);
-      }
-    }
-  };
-
-  if (chatHistory) {
-    chatHistory.addEventListener("click", handleMessageInteraction);
-    chatHistory.addEventListener("touchstart", (e) => {
-      // Direct touch propagation checking specifically for action items
-      if (e.target.classList.contains("reply-btn") || e.target.classList.contains("delete-single-btn")) {
-        handleMessageInteraction(e);
-      }
-    }, { passive: true });
-  }
-
+  // Real-time Database Message Streams Engine
   const qMessages = query(messagesCollection, orderBy("time", "asc"));
   onSnapshot(qMessages, (snapshot) => {
     if (!chatHistory) return;
@@ -520,13 +634,11 @@ document.addEventListener("DOMContentLoaded", () => {
       const timeString = data.time ? new Date(data.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "";
       const customUserColor = data.senderColor || "var(--accent)";
       const firstInitial = data.sender ? data.sender.charAt(0).toUpperCase() : "?";
-      
-      const sanitizedText = (data.message || "").replace(/"/g, '&quot;');
 
       let innerContent = "";
       if (!isConsecutive) {
         const isAdmin = checkAdminStatus(data.sender);
-        const adminBadge = isAdmin ? `<span class="admin-badge-label" style="border: 1px solid ${customUserColor}; font-size:8px; margin-left:4px; padding:1px 3px; border-radius:4px; color:${customUserColor}">Ace</span>` : "";
+        const adminBadge = isAdmin ? `<span class="admin-badge-label" style="border: 1px solid ${customUserColor}; font-size:9px; margin-left:6px; padding:1px 4px; border-radius:4px; color:${customUserColor}">Ace</span>` : "";
         innerContent += `<div class="message-meta">
           <div class="user-avatar-circle" style="background:${customUserColor}">${firstInitial}</div>
           <span class="sender-name" style="color:${customUserColor}">${data.sender || "Anonymous"}${adminBadge}</span>
@@ -535,12 +647,11 @@ document.addEventListener("DOMContentLoaded", () => {
       
       innerContent += `<div class="bubble-layout">`;
       
-      // Render Embedded Reply Quotes if present
-      if (data.replyToSender) {
+      // Inline Quoted Reply Rendering
+      if (data.replyTo) {
         innerContent += `
-          <div class="reply-bubble-quote" style="border-left-color: ${customUserColor}">
-            <span class="quote-sender" style="color:${customUserColor}">@${data.replyToSender}</span>
-            <span class="quote-text">${data.replyToText || "[Shared Asset]"}</span>
+          <div class="quote-reply-block" style="border-left-color: ${data.replyTo.color || 'var(--accent)'}">
+            <strong>@${data.replyTo.sender}</strong>: ${data.replyTo.message}
           </div>
         `;
       }
@@ -548,14 +659,37 @@ document.addEventListener("DOMContentLoaded", () => {
       if (data.image) innerContent += `<img src="${data.image}" class="chat-img" alt="Shared Asset">`;
       if (data.message) innerContent += `<div class="bubble" style="${isMe ? `background:${customUserColor};color:#111;` : ''}">${data.message}</div>`;
       
-      // Sub-controls (Reply / Delete / Timestamp)
+      // Dynamic Inline Reaction Rendering
+      if (data.reactions && Object.keys(data.reactions).length > 0) {
+        innerContent += `<div class="msg-reactions-container">`;
+        for (const [emoji, users] of Object.entries(data.reactions)) {
+          if (users && users.length > 0) {
+            const hasReacted = users.includes(currentUsername);
+            innerContent += `
+              <div class="reaction-pill ${hasReacted ? 'active' : ''}" data-id="${msgId}" data-emoji="${emoji}" title="${users.join(', ')}">
+                <span>${emoji}</span> <span style="font-size: 10px; margin-left: 3px;">${users.length}</span>
+              </div>
+            `;
+          }
+        }
+        innerContent += `</div>`;
+      }
+
+      // Inline Tooling Operations Controls (Edit, Reply, React, Delete)
+      const editedLabel = data.edited ? `<span class="edited-label" style="font-size: 9px; opacity: 0.6; margin-right: 4px;">(edited)</span>` : "";
+      const editBtn = isMe ? `<span class="edit-btn" data-id="${msgId}" data-msg="${encodeURIComponent(data.message || '')}" title="Edit Message">✏️</span>` : "";
+      const replyBtn = `<span class="reply-btn" data-id="${msgId}" data-sender="${encodeURIComponent(data.sender || 'Anonymous')}" data-msg="${encodeURIComponent(data.message || (data.image ? '[Image Attachment]' : ''))}" title="Reply">💬</span>`;
+      const reactTrigger = `<span class="react-trigger" data-id="${msgId}" title="React">😀</span>`;
+
       innerContent += `
           <div class="bubble-sub">
-            <span class="reply-btn" data-id="${msgId}" data-sender="${data.sender || "Anonymous"}" data-text="${sanitizedText}">
-              <svg style="pointer-events: none;" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 10h10a8 8 0 0 1 8 8v2M3 10l6 6m-6-6l6-6"/></svg> Reply
-            </span>
-            <span class="timestamp">${timeString}</span>
-            <span class="delete-single-btn" data-id="${msgId}">🗑️</span>
+            <span class="timestamp">${editedLabel}${timeString}</span>
+            <div class="bubble-actions">
+              ${reactTrigger}
+              ${replyBtn}
+              ${editBtn}
+              <span class="delete-single-btn" data-id="${msgId}" title="Delete">🗑️</span>
+            </div>
           </div>
         </div>
       `;
@@ -563,19 +697,23 @@ document.addEventListener("DOMContentLoaded", () => {
       chatHistory.appendChild(msgElement);
     });
 
+    // Mobile safe scroll tracking updates
     setTimeout(() => {
       if (chatHistory) chatHistory.scrollTop = chatHistory.scrollHeight;
     }, 50);
   });
 
+  // Handle Mobile Virtual Keyboard Resize Calculations
   window.visualViewport?.addEventListener("resize", () => {
      setTimeout(() => { if (chatHistory) chatHistory.scrollTop = chatHistory.scrollHeight; }, 100);
   });
 
+  // Active Terminal Directory Synchronizer
   onSnapshot(statusCollection, (snapshot) => {
     if (!onlineUsersList) return;
     onlineUsersList.innerHTML = "";
     
+    // Seed persistent AI Bot node
     const aiRow = document.createElement("div");
     aiRow.className = "online-user-item";
     aiRow.innerHTML = `<div class="mini-avatar" style="background:#ff9f43">🤖</div> <span>AI Bot</span>`;
@@ -610,14 +748,12 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // ==========================================================================
-  // 07. COMMUNICATION DISPATCH ENGINE
-  // ==========================================================================
+  // Advanced Multi-turn Intelligent Conversational Assistant Pipeline
   async function fetchAiReply(userPrompt) {
     try {
       updateAiPresence(true);
       aiContextMemory.push({ role: "user", content: userPrompt });
-      if (aiContextMemory.length > 12) aiContextMemory.shift();
+      if (aiContextMemory.length > 12) aiContextMemory.shift(); // Bound memory packet size
 
       const payloadMessages = [
         { role: "system", content: "You are a swift, hyper-optimized conversational engineer assistant built inside GhostChat channel. Keep structural formatting tight, markdown clean, and replies professional." },
@@ -630,8 +766,8 @@ document.addEventListener("DOMContentLoaded", () => {
         body: JSON.stringify({ messages: payloadMessages })
       });
 
-      const replyText = await response.text();
-      const responseClean = replyText ? replyText.trim() : "System cluster response error: empty buffer pipeline.";
+      const replyTextResult = await response.text();
+      const responseClean = replyTextResult ? replyTextResult.trim() : "System cluster response error: empty buffer pipeline.";
       
       aiContextMemory.push({ role: "assistant", content: responseClean });
       
@@ -658,94 +794,82 @@ document.addEventListener("DOMContentLoaded", () => {
     messageArea.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); sendBtn.click(); } });
   }
 
-  const handleMessageDispatch = async () => {
-    if (!messageArea) return;
-    const text = messageArea.value.trim();
-    if (!text && !selectedImageBase64) return;
-
-    const newMsgPayload = {
-      sender: currentUsername || "Anonymous",
-      senderColor: currentUserColor,
-      message: text,
-      image: selectedImageBase64,
-      time: Date.now()
-    };
-
-    if (replyToMessageId) {
-      newMsgPayload.replyToId = replyToMessageId;
-      newMsgPayload.replyToSender = replyToSender;
-      newMsgPayload.replyToText = replyToText;
-    }
-
-    await addDoc(messagesCollection, newMsgPayload);
-
-    messageArea.value = "";
-    localStorage.removeItem("chat_draft");
-    selectedImageBase64 = "";
-    if (imageInput) imageInput.value = "";
-    if (cameraInput) cameraInput.value = "";
-    if (imagePreviewContainer) imagePreviewContainer.classList.add("hidden");
-    
-    clearReplyContext();
-    clearTimeout(typingTimeout);
-    updatePresence(true, false);
-
-    if (text.toLowerCase().startsWith("@ai")) {
-      const cleanedPrompt = text.replace(/^@ai\s*/i, "").trim();
-      if (cleanedPrompt) fetchAiReply(cleanedPrompt);
-    }
-  };
-
   if (sendBtn) {
-    sendBtn.addEventListener("click", handleMessageDispatch);
-    sendBtn.addEventListener("touchstart", (e) => {
-      e.preventDefault();
-      handleMessageDispatch();
-    }, { passive: false });
+    sendBtn.addEventListener("click", async () => {
+      if (!messageArea) return;
+      const text = messageArea.value.trim();
+      if (!text && !selectedImageBase64) return;
+
+      if (editMessageId) {
+        // Handle Message Edits
+        const docRef = doc(db, "messages", editMessageId);
+        await setDoc(docRef, {
+          message: text,
+          edited: true
+        }, { merge: true });
+
+        clearContext();
+      } else {
+        // Handle Standard Message Transmission or Replies
+        const payload = {
+          sender: currentUsername || "Anonymous",
+          senderColor: currentUserColor,
+          message: text,
+          image: selectedImageBase64,
+          time: Date.now()
+        };
+
+        if (replyMessageId) {
+          payload.replyTo = {
+            id: replyMessageId,
+            sender: replySender,
+            message: replyText,
+            color: currentUserColor
+          };
+        }
+
+        await addDoc(messagesCollection, payload);
+        clearContext();
+      }
+
+      messageArea.value = "";
+      localStorage.removeItem("chat_draft");
+      selectedImageBase64 = "";
+      if (imageInput) imageInput.value = "";
+      if (cameraInput) cameraInput.value = "";
+      if (imagePreviewContainer) imagePreviewContainer.classList.add("hidden");
+      
+      clearTimeout(typingTimeout);
+      updatePresence(true, false);
+
+      if (text.toLowerCase().startsWith("@ai") && !editMessageId) {
+        const cleanedPrompt = text.replace(/^@ai\s*/i, "").trim();
+        if (cleanedPrompt) fetchAiReply(cleanedPrompt);
+      }
+    });
   }
 
-  // ==========================================================================
-  // 08. UTILITY EVENT BINDINGS (PALETTE, SIZING, PURGING)
-  // ==========================================================================
-  const triggerPaletteSwap = () => {
-    currentThemeIndex = (currentThemeIndex + 1) % themes.length;
-    localStorage.setItem("chat_theme_index", currentThemeIndex);
-    if (chatContainer) chatContainer.style.backgroundColor = themes[currentThemeIndex];
-  };
+  // Configuration Panels Actions Hookups
   if (themeBtn) {
-    themeBtn.addEventListener("click", triggerPaletteSwap);
-    themeBtn.addEventListener("touchstart", (e) => { e.preventDefault(); triggerPaletteSwap(); }, { passive: false });
+    themeBtn.addEventListener("click", () => {
+      currentThemeIndex = (currentThemeIndex + 1) % themes.length;
+      localStorage.setItem("chat_theme_index", currentThemeIndex);
+      if (chatContainer) chatContainer.style.backgroundColor = themes[currentThemeIndex];
+    });
   }
 
-  const decreaseFontSize = () => { if (currentFontSize > minFontSize) { currentFontSize -= 2; applyChatFontSize(currentFontSize); } };
-  const increaseFontSize = () => { if (currentFontSize < maxFontSize) { currentFontSize += 2; applyChatFontSize(currentFontSize); } };
+  if (incFontBtn) incFontBtn.addEventListener("click", () => { if (currentFontSize < maxFontSize) { currentFontSize += 2; applyChatFontSize(currentFontSize); } });
+  if (decFontBtn) decFontBtn.addEventListener("click", () => { if (currentFontSize > minFontSize) { currentFontSize -= 2; applyChatFontSize(currentFontSize); } });
+  if (clearChatBtn) clearChatBtn.addEventListener("click", () => { if (confirm("Confirm structural buffer clear?")) purgeChatRoomLogs(); });
 
-  if (decFontBtn) {
-    decFontBtn.addEventListener("click", decreaseFontSize);
-    decFontBtn.addEventListener("touchstart", (e) => { e.preventDefault(); decreaseFontSize(); }, { passive: false });
-  }
-  if (incFontBtn) {
-    incFontBtn.addEventListener("click", increaseFontSize);
-    incFontBtn.addEventListener("touchstart", (e) => { e.preventDefault(); increaseFontSize(); }, { passive: false });
-  }
-
-  const triggerChatPurge = () => { if (confirm("Confirm structural buffer clear?")) purgeChatRoomLogs(); };
-  if (clearChatBtn) {
-    clearChatBtn.addEventListener("click", triggerChatPurge);
-    clearChatBtn.addEventListener("touchstart", (e) => { e.preventDefault(); triggerChatPurge(); }, { passive: false });
-  }
-
-  // Scroll Bottom Button
+  // Floating Navigation Action Attachment
   const scrollBtn = document.createElement("button");
   scrollBtn.id = "scrollBottomBtn";
   scrollBtn.type = "button";
   scrollBtn.textContent = "⬇";
   document.querySelector(".chat-container")?.appendChild(scrollBtn);
 
-  const triggerScrollBottom = () => chatHistory?.scrollTo({ top: chatHistory.scrollHeight, behavior: "smooth" });
-  scrollBtn.addEventListener("click", triggerScrollBottom);
-  scrollBtn.addEventListener("touchstart", (e) => { e.preventDefault(); triggerScrollBottom(); }, { passive: false });
-
+  scrollBtn.addEventListener("click", () => chatHistory?.scrollTo({ top: chatHistory.scrollHeight, behavior: "smooth" }));
   chatHistory?.addEventListener("scroll", () => {
     const nearBottom = chatHistory.scrollHeight - chatHistory.scrollTop - chatHistory.clientHeight < 80;
     scrollBtn.style.display = nearBottom ? "none" : "flex";
