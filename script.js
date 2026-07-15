@@ -49,9 +49,9 @@ let replyToText = "";
 // Theme & Viewport Scaling Configuration
 const themes = ["#1e2330", "#2c1a30", "#1a2e26", "#301a1a"];
 let currentThemeIndex = parseInt(localStorage.getItem("chat_theme_index")) || 0;
-let currentFontSize = parseInt(localStorage.getItem('chatFontSize')) || 14; // Default starting font size
+let currentFontSize = parseInt(localStorage.getItem('chatFontSize')) || 13; // Lower base size for mobile matching the html style overrides
 const minFontSize = 10;
-const maxFontSize = 32;
+const maxFontSize = 24;
 
 // Swipe Gallery Context Variables
 let galleryImages = [];
@@ -74,7 +74,7 @@ function applyChatFontSize(size) {
   styleEl.innerHTML = `
     .bubble, #message { font-size: ${size}px !important; }
     /* Mobile Tap Visibility Overrides */
-    .message-wrapper.show-controls .bubble-sub { opacity: 1 !important; visibility: visible !important; }
+    .message-wrapper.show-controls .bubble-sub { opacity: 1 !important; visibility: visible !important; display: flex !important; }
   `;
   localStorage.setItem('chatFontSize', size);
 }
@@ -142,7 +142,7 @@ document.addEventListener("DOMContentLoaded", () => {
         replyBox.className = "reply-container hidden";
         replyBox.innerHTML = `
           <div class="reply-content">
-            <svg class="reply-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 17H7A5 5 0 0 1 7 7h10a5 5 0 0 1 0 10H13M9 17l4-4M9 17l4 4"/></svg>
+            <svg class="reply-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="pointer-events: none;"><path d="M9 17H7A5 5 0 0 1 7 7h10a5 5 0 0 1 0 10H13M9 17l4-4M9 17l4 4"/></svg>
             <div class="reply-details">
               <span class="reply-label" id="replyLabel">Replying to Username</span>
               <span class="reply-text-preview" id="replyPreview">Preview Message</span>
@@ -152,7 +152,16 @@ document.addEventListener("DOMContentLoaded", () => {
         `;
         inputArea.insertBefore(replyBox, actionBarContainer);
         
-        document.getElementById("cancelReplyBtn").addEventListener("click", clearReplyContext);
+        // Add robust click/touch listener for canceling replies
+        const cancelBtn = document.getElementById("cancelReplyBtn");
+        cancelBtn.addEventListener("click", (e) => {
+          e.preventDefault();
+          clearReplyContext();
+        });
+        cancelBtn.addEventListener("touchstart", (e) => {
+          e.preventDefault();
+          clearReplyContext();
+        }, { passive: false });
       }
     }
     return replyBox;
@@ -188,9 +197,12 @@ document.addEventListener("DOMContentLoaded", () => {
   const activeUsersPanel = document.querySelector(".active-users-panel");
   const panelHeader = document.querySelector(".panel-header");
   if (panelHeader && activeUsersPanel) {
-    panelHeader.addEventListener("click", () => {
-      activeUsersPanel.classList.toggle("minimized");
-    });
+    const togglePanel = () => activeUsersPanel.classList.toggle("minimized");
+    panelHeader.addEventListener("click", togglePanel);
+    panelHeader.addEventListener("touchstart", (e) => {
+      e.preventDefault();
+      togglePanel();
+    }, { passive: false });
   }
 
   document.querySelectorAll(".color-dot").forEach(dot => {
@@ -198,11 +210,13 @@ document.addEventListener("DOMContentLoaded", () => {
       document.querySelectorAll(".color-dot").forEach(d => d.classList.remove("selected"));
       dot.classList.add("selected");
     }
-    dot.addEventListener("click", (e) => {
+    const selectColor = (e) => {
       document.querySelectorAll(".color-dot").forEach(d => d.classList.remove("selected"));
       e.target.classList.add("selected");
       currentUserColor = e.target.getAttribute("data-color");
-    });
+    };
+    dot.addEventListener("click", selectColor);
+    dot.addEventListener("touchstart", selectColor, { passive: true });
   });
 
   let lookupTimeout = null;
@@ -312,14 +326,17 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (saveNameBtn) {
     saveNameBtn.addEventListener("click", handleUserSetupSave);
+    saveNameBtn.addEventListener("touchstart", (e) => { e.preventDefault(); handleUserSetupSave(); }, { passive: false });
   }
 
   if (changeNameBtn && usernameInput && nameModal) {
-    changeNameBtn.addEventListener("click", () => {
+    const showIdentityModal = () => {
       usernameInput.value = currentUsername;
       usernameFeedback.textContent = "";
       nameModal.classList.remove("hidden-modal");
-    });
+    };
+    changeNameBtn.addEventListener("click", showIdentityModal);
+    changeNameBtn.addEventListener("touchstart", (e) => { e.preventDefault(); showIdentityModal(); }, { passive: false });
   }
 
   // ==========================================================================
@@ -358,13 +375,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (imageInput) imageInput.addEventListener("change", async (e) => { if (e.target.files.length > 0) await processSelectedFile(e.target.files[0]); });
   if (cameraInput) cameraInput.addEventListener("change", async (e) => { if (e.target.files.length > 0) await processSelectedFile(e.target.files[0]); });
+  
   if (cancelImage) {
-    cancelImage.addEventListener("click", () => {
+    const clearMedia = () => {
       selectedImageBase64 = "";
       if (imageInput) imageInput.value = "";
       if (cameraInput) cameraInput.value = "";
       if (imagePreviewContainer) imagePreviewContainer.classList.add("hidden");
-    });
+    };
+    cancelImage.addEventListener("click", clearMedia);
+    cancelImage.addEventListener("touchstart", (e) => { e.preventDefault(); clearMedia(); }, { passive: false });
   }
 
   async function purgeChatRoomLogs() {
@@ -419,49 +439,63 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (zoomInBtn) zoomInBtn.addEventListener("click", () => { const targetImg = document.getElementById("zoomedImage"); if (targetImg) { currentScale += 0.3; targetImg.style.transform = `scale(${currentScale})`; } });
   if (zoomOutBtn) zoomOutBtn.addEventListener("click", () => { const targetImg = document.getElementById("zoomedImage"); if (targetImg && currentScale > 0.6) { currentScale -= 0.3; targetImg.style.transform = `scale(${currentScale})`; } });
-  if (closeZoom) closeZoom.addEventListener("click", () => zoomModal.classList.add("hidden"));
+  if (closeZoom) {
+    closeZoom.addEventListener("click", () => zoomModal.classList.add("hidden"));
+    closeZoom.addEventListener("touchstart", (e) => { e.preventDefault(); zoomModal.classList.add("hidden"); }, { passive: false });
+  }
 
   // ==========================================================================
-  // 06. CHAT HISTORY TAP CONTROLS & SNAPSHOTS
+  // 06. CHAT HISTORY TAP & TOUCH CONTROLS
   // ==========================================================================
+  const handleMessageInteraction = async (e) => {
+    // 1. Handle mobile tap-to-reveal on chat bubbles
+    const wrapper = e.target.closest(".message-wrapper");
+    if (wrapper && !e.target.classList.contains("delete-single-btn") && !e.target.classList.contains("reply-btn") && !e.target.classList.contains("chat-img")) {
+      const wasActive = wrapper.classList.contains("show-controls");
+      document.querySelectorAll(".message-wrapper").forEach(w => w.classList.remove("show-controls"));
+      if (!wasActive) {
+        wrapper.classList.add("show-controls");
+      }
+    }
+
+    // 2. Handle message reply button
+    if (e.target.classList.contains("reply-btn")) {
+      e.preventDefault();
+      const idToReply = e.target.getAttribute("data-id");
+      const sender = e.target.getAttribute("data-sender");
+      const text = e.target.getAttribute("data-text");
+      initiateReply(idToReply, sender, text);
+    }
+
+    // 3. Handle message delete button
+    if (e.target.classList.contains("delete-single-btn")) {
+      e.preventDefault();
+      const idToDelete = e.target.getAttribute("data-id");
+      if (idToDelete && confirm("Purge message package node?")) {
+        await deleteDoc(doc(db, "messages", idToDelete));
+      }
+    }
+
+    // 4. Handle image zooming
+    if (e.target.classList.contains("chat-img")) {
+      const activeSrc = e.target.src;
+      galleryImages = Array.from(document.querySelectorAll(".chat-img")).map(img => img.src);
+      const findIdx = galleryImages.indexOf(activeSrc);
+      if (zoomModal) {
+        zoomModal.classList.remove("hidden");
+        setupLightboxIndex(findIdx !== -1 ? findIdx : 0);
+      }
+    }
+  };
+
   if (chatHistory) {
-    chatHistory.addEventListener("click", async (e) => {
-      
-      // Handle mobile tap-to-reveal on chat bubbles
-      const wrapper = e.target.closest(".message-wrapper");
-      if (wrapper && !e.target.classList.contains("delete-single-btn") && !e.target.classList.contains("reply-btn") && !e.target.classList.contains("chat-img")) {
-        const wasActive = wrapper.classList.contains("show-controls");
-        document.querySelectorAll(".message-wrapper").forEach(w => w.classList.remove("show-controls"));
-        if (!wasActive) wrapper.classList.add("show-controls");
+    chatHistory.addEventListener("click", handleMessageInteraction);
+    chatHistory.addEventListener("touchstart", (e) => {
+      // Direct touch propagation checking specifically for action items
+      if (e.target.classList.contains("reply-btn") || e.target.classList.contains("delete-single-btn")) {
+        handleMessageInteraction(e);
       }
-
-      // Handle message reply button
-      if (e.target.classList.contains("reply-btn")) {
-        const idToReply = e.target.getAttribute("data-id");
-        const sender = e.target.getAttribute("data-sender");
-        const text = e.target.getAttribute("data-text");
-        initiateReply(idToReply, sender, text);
-      }
-
-      // Handle message delete button
-      if (e.target.classList.contains("delete-single-btn")) {
-        const idToDelete = e.target.getAttribute("data-id");
-        if (idToDelete && confirm("Purge message package node?")) {
-          await deleteDoc(doc(db, "messages", idToDelete));
-        }
-      }
-
-      // Handle image zooming
-      if (e.target.classList.contains("chat-img")) {
-        const activeSrc = e.target.src;
-        galleryImages = Array.from(document.querySelectorAll(".chat-img")).map(img => img.src);
-        const findIdx = galleryImages.indexOf(activeSrc);
-        if (zoomModal) {
-          zoomModal.classList.remove("hidden");
-          setupLightboxIndex(findIdx !== -1 ? findIdx : 0);
-        }
-      }
-    });
+    }, { passive: true });
   }
 
   const qMessages = query(messagesCollection, orderBy("time", "asc"));
@@ -487,13 +521,12 @@ document.addEventListener("DOMContentLoaded", () => {
       const customUserColor = data.senderColor || "var(--accent)";
       const firstInitial = data.sender ? data.sender.charAt(0).toUpperCase() : "?";
       
-      // Clean up string for HTML data attributes
       const sanitizedText = (data.message || "").replace(/"/g, '&quot;');
 
       let innerContent = "";
       if (!isConsecutive) {
         const isAdmin = checkAdminStatus(data.sender);
-        const adminBadge = isAdmin ? `<span class="admin-badge-label" style="border: 1px solid ${customUserColor}; font-size:9px; margin-left:6px; padding:1px 4px; border-radius:4px; color:${customUserColor}">Ace</span>` : "";
+        const adminBadge = isAdmin ? `<span class="admin-badge-label" style="border: 1px solid ${customUserColor}; font-size:8px; margin-left:4px; padding:1px 3px; border-radius:4px; color:${customUserColor}">Ace</span>` : "";
         innerContent += `<div class="message-meta">
           <div class="user-avatar-circle" style="background:${customUserColor}">${firstInitial}</div>
           <span class="sender-name" style="color:${customUserColor}">${data.sender || "Anonymous"}${adminBadge}</span>
@@ -519,7 +552,7 @@ document.addEventListener("DOMContentLoaded", () => {
       innerContent += `
           <div class="bubble-sub">
             <span class="reply-btn" data-id="${msgId}" data-sender="${data.sender || "Anonymous"}" data-text="${sanitizedText}">
-              <svg style="pointer-events: none;" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10h10a8 8 0 0 1 8 8v2M3 10l6 6m-6-6l6-6"/></svg> Reply
+              <svg style="pointer-events: none;" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 10h10a8 8 0 0 1 8 8v2M3 10l6 6m-6-6l6-6"/></svg> Reply
             </span>
             <span class="timestamp">${timeString}</span>
             <span class="delete-single-btn" data-id="${msgId}">🗑️</span>
@@ -625,70 +658,94 @@ document.addEventListener("DOMContentLoaded", () => {
     messageArea.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); sendBtn.click(); } });
   }
 
+  const handleMessageDispatch = async () => {
+    if (!messageArea) return;
+    const text = messageArea.value.trim();
+    if (!text && !selectedImageBase64) return;
+
+    const newMsgPayload = {
+      sender: currentUsername || "Anonymous",
+      senderColor: currentUserColor,
+      message: text,
+      image: selectedImageBase64,
+      time: Date.now()
+    };
+
+    if (replyToMessageId) {
+      newMsgPayload.replyToId = replyToMessageId;
+      newMsgPayload.replyToSender = replyToSender;
+      newMsgPayload.replyToText = replyToText;
+    }
+
+    await addDoc(messagesCollection, newMsgPayload);
+
+    messageArea.value = "";
+    localStorage.removeItem("chat_draft");
+    selectedImageBase64 = "";
+    if (imageInput) imageInput.value = "";
+    if (cameraInput) cameraInput.value = "";
+    if (imagePreviewContainer) imagePreviewContainer.classList.add("hidden");
+    
+    clearReplyContext();
+    clearTimeout(typingTimeout);
+    updatePresence(true, false);
+
+    if (text.toLowerCase().startsWith("@ai")) {
+      const cleanedPrompt = text.replace(/^@ai\s*/i, "").trim();
+      if (cleanedPrompt) fetchAiReply(cleanedPrompt);
+    }
+  };
+
   if (sendBtn) {
-    sendBtn.addEventListener("click", async () => {
-      if (!messageArea) return;
-      const text = messageArea.value.trim();
-      if (!text && !selectedImageBase64) return;
-
-      const newMsgPayload = {
-        sender: currentUsername || "Anonymous",
-        senderColor: currentUserColor,
-        message: text,
-        image: selectedImageBase64,
-        time: Date.now()
-      };
-
-      // Append reply dependencies to payload if active
-      if (replyToMessageId) {
-        newMsgPayload.replyToId = replyToMessageId;
-        newMsgPayload.replyToSender = replyToSender;
-        newMsgPayload.replyToText = replyToText;
-      }
-
-      await addDoc(messagesCollection, newMsgPayload);
-
-      // Reset Environment Input State
-      messageArea.value = "";
-      localStorage.removeItem("chat_draft");
-      selectedImageBase64 = "";
-      if (imageInput) imageInput.value = "";
-      if (cameraInput) cameraInput.value = "";
-      if (imagePreviewContainer) imagePreviewContainer.classList.add("hidden");
-      
-      clearReplyContext();
-      clearTimeout(typingTimeout);
-      updatePresence(true, false);
-
-      if (text.toLowerCase().startsWith("@ai")) {
-        const cleanedPrompt = text.replace(/^@ai\s*/i, "").trim();
-        if (cleanedPrompt) fetchAiReply(cleanedPrompt);
-      }
-    });
+    sendBtn.addEventListener("click", handleMessageDispatch);
+    sendBtn.addEventListener("touchstart", (e) => {
+      e.preventDefault();
+      handleMessageDispatch();
+    }, { passive: false });
   }
 
   // ==========================================================================
-  // 08. UTILITY EVENT BINDINGS
+  // 08. UTILITY EVENT BINDINGS (PALETTE, SIZING, PURGING)
   // ==========================================================================
+  const triggerPaletteSwap = () => {
+    currentThemeIndex = (currentThemeIndex + 1) % themes.length;
+    localStorage.setItem("chat_theme_index", currentThemeIndex);
+    if (chatContainer) chatContainer.style.backgroundColor = themes[currentThemeIndex];
+  };
   if (themeBtn) {
-    themeBtn.addEventListener("click", () => {
-      currentThemeIndex = (currentThemeIndex + 1) % themes.length;
-      localStorage.setItem("chat_theme_index", currentThemeIndex);
-      if (chatContainer) chatContainer.style.backgroundColor = themes[currentThemeIndex];
-    });
+    themeBtn.addEventListener("click", triggerPaletteSwap);
+    themeBtn.addEventListener("touchstart", (e) => { e.preventDefault(); triggerPaletteSwap(); }, { passive: false });
   }
 
-  if (incFontBtn) incFontBtn.addEventListener("click", () => { if (currentFontSize < maxFontSize) { currentFontSize += 2; applyChatFontSize(currentFontSize); } });
-  if (decFontBtn) decFontBtn.addEventListener("click", () => { if (currentFontSize > minFontSize) { currentFontSize -= 2; applyChatFontSize(currentFontSize); } });
-  if (clearChatBtn) clearChatBtn.addEventListener("click", () => { if (confirm("Confirm structural buffer clear?")) purgeChatRoomLogs(); });
+  const decreaseFontSize = () => { if (currentFontSize > minFontSize) { currentFontSize -= 2; applyChatFontSize(currentFontSize); } };
+  const increaseFontSize = () => { if (currentFontSize < maxFontSize) { currentFontSize += 2; applyChatFontSize(currentFontSize); } };
 
+  if (decFontBtn) {
+    decFontBtn.addEventListener("click", decreaseFontSize);
+    decFontBtn.addEventListener("touchstart", (e) => { e.preventDefault(); decreaseFontSize(); }, { passive: false });
+  }
+  if (incFontBtn) {
+    incFontBtn.addEventListener("click", increaseFontSize);
+    incFontBtn.addEventListener("touchstart", (e) => { e.preventDefault(); increaseFontSize(); }, { passive: false });
+  }
+
+  const triggerChatPurge = () => { if (confirm("Confirm structural buffer clear?")) purgeChatRoomLogs(); };
+  if (clearChatBtn) {
+    clearChatBtn.addEventListener("click", triggerChatPurge);
+    clearChatBtn.addEventListener("touchstart", (e) => { e.preventDefault(); triggerChatPurge(); }, { passive: false });
+  }
+
+  // Scroll Bottom Button
   const scrollBtn = document.createElement("button");
   scrollBtn.id = "scrollBottomBtn";
   scrollBtn.type = "button";
   scrollBtn.textContent = "⬇";
   document.querySelector(".chat-container")?.appendChild(scrollBtn);
 
-  scrollBtn.addEventListener("click", () => chatHistory?.scrollTo({ top: chatHistory.scrollHeight, behavior: "smooth" }));
+  const triggerScrollBottom = () => chatHistory?.scrollTo({ top: chatHistory.scrollHeight, behavior: "smooth" });
+  scrollBtn.addEventListener("click", triggerScrollBottom);
+  scrollBtn.addEventListener("touchstart", (e) => { e.preventDefault(); triggerScrollBottom(); }, { passive: false });
+
   chatHistory?.addEventListener("scroll", () => {
     const nearBottom = chatHistory.scrollHeight - chatHistory.scrollTop - chatHistory.clientHeight < 80;
     scrollBtn.style.display = nearBottom ? "none" : "flex";
