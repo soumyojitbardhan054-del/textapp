@@ -10,7 +10,8 @@ import {
   orderBy,
   getDocs,
   deleteDoc,
-  writeBatch
+  writeBatch,
+  where
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -26,6 +27,7 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const messagesCollection = collection(db, "messages");
 const statusCollection = collection(db, "status");
+const chatsCollection = collection(db, "chats");
 
 let currentUsername = localStorage.getItem("chat_username") || "";
 let currentUserColor = localStorage.getItem("chat_user_color") || "#00d2d3";
@@ -48,6 +50,33 @@ let warningTwoMinSent = false;
 
 let globalTimerDisplayString = "";
 let globalTypingDisplayString = "";
+
+// --- Private Chat / Invite Code System ---
+let myCode = localStorage.getItem("chat_user_code") || generateInviteCode();
+let activeChatType = "global";   // "global" | "private"
+let activeChatId = null;         // Firestore doc id of the private chat room (null for global)
+let activeChatLabel = "Global Chat";
+let unsubscribeMessages = null;
+let unsubscribeChatList = null;
+
+function generateInviteCode() {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no ambiguous chars like 0/O, 1/I
+  let code = "";
+  for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  localStorage.setItem("chat_user_code", code);
+  return code;
+}
+
+function getPrivateChatId(nameA, nameB) {
+  return [nameA.toLowerCase(), nameB.toLowerCase()].sort().join("__");
+}
+
+function getActiveMessagesRef() {
+  if (activeChatType === "private" && activeChatId) {
+    return collection(db, "chats", activeChatId, "messages");
+  }
+  return messagesCollection;
+}
 
 // Helper function to dynamically update the font size across the chat
 function applyChatFontSize(size) {
@@ -136,6 +165,7 @@ document.addEventListener("DOMContentLoaded", () => {
     await setDoc(userDocRef, {
       username: currentUsername,
       color: currentUserColor,
+      code: myCode,
       isOnline: isOnline,
       isTyping: isTyping,
       lastSeen: Date.now()
@@ -160,11 +190,156 @@ document.addEventListener("DOMContentLoaded", () => {
       if (mobileUserDisplay) mobileUserDisplay.textContent = `Profile: ${currentUsername}`;
       nameModal.classList.add("hidden-modal");
       updatePresence(true, false);
+      subscribeToChatList();
     } else {
       nameModal.classList.remove("hidden-modal");
     }
   }
   updateIdentityDisplays();
+
+  // --- Mobile sidebar (chats drawer) open/close ---
+  function openSidebar() {
+    sidebar?.classList.add("open");
+    sidebarBackdrop?.classList.add("show");
+  }
+  function closeSidebar() {
+    sidebar?.classList.remove("open");
+    sidebarBackdrop?.classList.remove("show");
+  }
+  menuToggleBtn?.addEventListener("click", openSidebar);
+  closeSidebarBtn?.addEventListener("click", closeSidebar);
+  sidebarBackdrop?.addEventListener("click", closeSidebar);
+
+  // --- Copy invite code ---
+  copyCodeBtn?.addEventListener("click", () => {
+    navigator.clipboard?.writeText(myCode).then(() => {
+      copyCodeBtn.textContent = "✅";
+      setTimeout(() => { copyCodeBtn.textContent = "📋"; }, 1200);
+    }).catch(() => {});
+  });
+
+  // --- Switching between Global chat and a private chat ---
+  function switchToChat(type, chatId, label) {
+    activeChatType = type;
+    activeChatId = chatId;
+    activeChatLabel = label;
+    if (chatTitle) chatTitle.textContent = `💬 ${label}`;
+    highlightActiveChatItem();
+    subscribeToMessages();
+    closeSidebar();
+  }
+
+  function highlightActiveChatItem() {
+    document.querySelectorAll(".chat-list-item").forEach(item => {
+      const isActive = (item.dataset.type === activeChatType) &&
+        (item.dataset.type === "global" || item.dataset.chatId === activeChatId);
+      item.classList.toggle("active", isActive);
+    });
+  }
+
+  // --- Render the sidebar chat list (Global + private chats) ---
+  function renderChatList(privateChats) {
+    if (!chatList) return;
+    chatList.innerHTML = "";
+
+    const globalItem = document.createElement("div");
+    globalItem.className = "chat-list-item";
+    globalItem.dataset.type = "global";
+    globalItem.innerHTML = `<div class="mini-avatar" style="background:var(--accent)">🌍</div><span class="chat-name">Global Chat</span>`;
+    globalItem.addEventListener("click", () => switchToChat("global", null, "Global Chat"));
+    chatList.appendChild(globalItem);
+
+    privateChats.forEach(chat => {
+      const myKey = currentUsername.toLowerCase().replace(/\s+/g, '_');
+      const otherKey = chat.participants.find(p => p !== myKey);
+      const otherName = (chat.participantNames && chat.participantNames[otherKey]) || "Unknown";
+      const firstInitial = otherName.charAt(0).toUpperCase();
+
+      const item = document.createElement("div");
+      item.className = "chat-list-item";
+      item.dataset.type = "private";
+      item.dataset.chatId = chat.id;
+      item.innerHTML = `<div class="mini-avatar" style="background:#a55eea">${firstInitial}</div><span class="chat-name">${otherName}</span>`;
+      item.addEventListener("click", () => switchToChat("private", chat.id, otherName));
+      chatList.appendChild(item);
+    });
+
+    highlightActiveChatItem();
+  }
+
+  function subscribeToChatList() {
+    if (!currentUsername) return;
+    if (unsubscribeChatList) unsubscribeChatList();
+
+    const myKey = currentUsername.toLowerCase().replace(/\s+/g, '_');
+    const chatsQuery = query(chatsCollection, where("participants", "array-contains", myKey));
+
+    unsubscribeChatList = onSnapshot(chatsQuery, (snapshot) => {
+      const chats = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      renderChatList(chats);
+    }, (err) => console.error("Chat list subscription failed:", err));
+  }
+
+  // --- Add Friend (start private chat via invite code) ---
+  function openAddFriendModal() {
+    if (friendCodeInput) friendCodeInput.value = "";
+    if (addFriendError) addFriendError.classList.add("hidden");
+    addFriendModal?.classList.remove("hidden-modal");
+    closeSidebar();
+  }
+  function closeAddFriendModal() {
+    addFriendModal?.classList.add("hidden-modal");
+  }
+  function showAddFriendError(msg) {
+    if (!addFriendError) return;
+    addFriendError.textContent = msg;
+    addFriendError.classList.remove("hidden");
+  }
+
+  addFriendBtn?.addEventListener("click", openAddFriendModal);
+  cancelFriendCodeBtn?.addEventListener("click", closeAddFriendModal);
+
+  submitFriendCodeBtn?.addEventListener("click", async () => {
+    if (!friendCodeInput) return;
+    const enteredCode = friendCodeInput.value.trim().toUpperCase();
+    if (!enteredCode) return;
+
+    if (enteredCode === myCode) {
+      showAddFriendError("That's your own code! Share it with a friend instead.");
+      return;
+    }
+
+    try {
+      const q = query(statusCollection, where("code", "==", enteredCode));
+      const snapshot = await getDocs(q);
+
+      if (snapshot.empty) {
+        showAddFriendError("No user found with that code. Double-check and try again.");
+        return;
+      }
+
+      const friendDoc = snapshot.docs[0].data();
+      const friendUsername = friendDoc.username;
+      const myKey = currentUsername.toLowerCase().replace(/\s+/g, '_');
+      const friendKey = friendUsername.toLowerCase().replace(/\s+/g, '_');
+      const chatId = getPrivateChatId(myKey, friendKey);
+
+      await setDoc(doc(chatsCollection, chatId), {
+        participants: [myKey, friendKey],
+        participantNames: {
+          [myKey]: currentUsername,
+          [friendKey]: friendUsername
+        },
+        createdAt: Date.now()
+      }, { merge: true });
+
+      closeAddFriendModal();
+      switchToChat("private", chatId, friendUsername);
+    } catch (err) {
+      console.error("Add friend failed:", err);
+      showAddFriendError("Something went wrong. Please try again.");
+    }
+  });
 
   window.addEventListener("beforeunload", () => {
     updatePresence(false, false);
@@ -262,7 +437,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   async function purgeChatRoomLogs() {
     try {
-      const querySnapshot = await getDocs(messagesCollection);
+      const querySnapshot = await getDocs(getActiveMessagesRef());
       if (querySnapshot.empty) return;
       
       const batch = writeBatch(db);
@@ -355,7 +530,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (e.target.classList.contains("delete-single-btn")) {
         const idToDelete = e.target.getAttribute("data-id");
         if (idToDelete && confirm("Delete this message?")) {
-          await deleteDoc(doc(db, "messages", idToDelete)).catch(err => console.error(err));
+          await deleteDoc(doc(getActiveMessagesRef(), idToDelete)).catch(err => console.error(err));
         }
       }
       
@@ -370,8 +545,13 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  const qMessages = query(messagesCollection, orderBy("time", "asc"));
-  onSnapshot(qMessages, (snapshot) => {
+  function subscribeToMessages() {
+    if (unsubscribeMessages) unsubscribeMessages();
+    const qMessages = query(getActiveMessagesRef(), orderBy("time", "asc"));
+    unsubscribeMessages = onSnapshot(qMessages, renderMessagesSnapshot, (err) => console.error("Message subscription failed:", err));
+  }
+
+  function renderMessagesSnapshot(snapshot) {
     if (!chatHistory) return;
     chatHistory.innerHTML = "";
 
@@ -443,7 +623,9 @@ document.addEventListener("DOMContentLoaded", () => {
       top: chatHistory.scrollHeight,
       behavior: "smooth"
     });
-  });
+  }
+
+  subscribeToMessages();
 
   window.visualViewport?.addEventListener("resize", () => {
      setTimeout(() => {
@@ -514,7 +696,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const replyText = await response.text();
       
-      await addDoc(messagesCollection, {
+      await addDoc(getActiveMessagesRef(), {
         sender: "AI Bot",
         senderColor: "#ff9f43",
         message: replyText ? replyText.trim() : "My processing space timed out. Try asking me again!",
@@ -552,7 +734,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const text = messageArea.value.trim();
       if (!text && !selectedImageBase64) return;
 
-      if (godIsActive && currentAnswer !== null) {
+      if (activeChatType === "global" && godIsActive && currentAnswer !== null) {
         if (parseInt(text) === currentAnswer) {
           godIsActive = false;
           currentAnswer = null;
@@ -566,7 +748,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       }
 
-      if (text.toLowerCase() === "/removegod") {
+      if (activeChatType === "global" && text.toLowerCase() === "/removegod") {
         messageArea.value = "";
         if (!godIsActive) {
           await sendGodSms("I am already muted this round.");
@@ -577,7 +759,7 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      await addDoc(messagesCollection, {
+      await addDoc(getActiveMessagesRef(), {
         sender: currentUsername || "Anonymous",
         senderColor: currentUserColor,
         message: text,
@@ -601,7 +783,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (cleanedPrompt) {
           fetchAiReply(cleanedPrompt);
         } else {
-          await addDoc(messagesCollection, {
+          await addDoc(getActiveMessagesRef(), {
             sender: "AI Bot",
             senderColor: "#ff9f43",
             message: "👋 I'm listening! Type `@ai` followed by your question.",
