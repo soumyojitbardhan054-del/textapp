@@ -11,8 +11,7 @@ import {
   getDocs,
   getDoc,
   deleteDoc,
-  writeBatch,
-  updateDoc
+  writeBatch
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 // Firebase Architecture Configuration Matrix
@@ -37,11 +36,6 @@ let currentUserColor = localStorage.getItem("chat_user_color") || "#00d2d3";
 let selectedImageBase64 = "";
 let typingTimeout = null;
 let aiContextMemory = [];
-
-// Feature Tracking States
-let replyingToId = null;
-let editingMessageId = null;
-let searchQueryStr = "";
 
 // Theme & Viewport Scaling Configuration
 const themes = ["#1e2330", "#2c1a30", "#1a2e26", "#301a1a"];
@@ -118,76 +112,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const onlineUsersList = document.getElementById("onlineUsersList");
   const typingIndicator = document.getElementById("typingIndicator");
 
-  // Advanced Features UI Elements
-  const sidebarToggleBtn = document.getElementById("sidebarToggleBtn");
-  const sidebarNode = document.getElementById("sidebarNode");
-  const sidebarOverlay = document.getElementById("sidebarOverlay");
-  const searchToggleBtn = document.getElementById("searchToggleBtn");
-  const searchBarContainer = document.getElementById("searchBarContainer");
-  const chatSearchInput = document.getElementById("chatSearchInput");
-  const closeSearchBtn = document.getElementById("closeSearchBtn");
-  const pinnedMessagesContainer = document.getElementById("pinnedMessagesContainer");
-  const pinnedMessagesList = document.getElementById("pinnedMessagesList");
-  const closePinnedPanelBtn = document.getElementById("closePinnedPanelBtn");
-  const replyContextContainer = document.getElementById("replyContextContainer");
-  const replyUserLabel = document.getElementById("replyUserLabel");
-  const replyTextLabel = document.getElementById("replyTextLabel");
-  const cancelReplyBtn = document.getElementById("cancelReplyBtn");
-
   if (chatContainer) chatContainer.style.backgroundColor = themes[currentThemeIndex];
   if (messageArea) messageArea.value = localStorage.getItem("chat_draft") || "";
-
-  // Mobile Hamburger Sidebar Toggle Mechanisms
-  if (sidebarToggleBtn && sidebarNode && sidebarOverlay) {
-    sidebarToggleBtn.addEventListener("click", () => {
-      sidebarNode.classList.toggle("active");
-      sidebarOverlay.classList.toggle("active");
-    });
-    sidebarOverlay.addEventListener("click", () => {
-      sidebarNode.classList.remove("active");
-      sidebarOverlay.classList.remove("active");
-    });
-  }
-
-  // Live Structural Chat Filtration Engine (In-chat Search)
-  if (searchToggleBtn && searchBarContainer) {
-    searchToggleBtn.addEventListener("click", () => {
-      searchBarContainer.classList.toggle("hidden");
-      if (!searchBarContainer.classList.contains("hidden") && chatSearchInput) {
-        chatSearchInput.focus();
-      }
-    });
-  }
-  if (closeSearchBtn && searchBarContainer && chatSearchInput) {
-    closeSearchBtn.addEventListener("click", () => {
-      searchBarContainer.classList.add("hidden");
-      chatSearchInput.value = "";
-      searchQueryStr = "";
-      triggerLocalFiltering();
-    });
-  }
-  if (chatSearchInput) {
-    chatSearchInput.addEventListener("input", (e) => {
-      searchQueryStr = e.target.value.toLowerCase().trim();
-      triggerLocalFiltering();
-    });
-  }
-
-  function triggerLocalFiltering() {
-    const wrappers = document.querySelectorAll(".message-wrapper");
-    wrappers.forEach(wrap => {
-      const bubble = wrap.querySelector(".bubble");
-      if (!searchQueryStr) {
-        wrap.style.display = "";
-        return;
-      }
-      if (bubble && bubble.textContent.toLowerCase().includes(searchQueryStr)) {
-        wrap.style.display = "";
-      } else {
-        wrap.style.display = "none";
-      }
-    });
-  }
 
   // Dynamic Toggle Support for Active Terminals Container Panel
   const activeUsersPanel = document.querySelector(".active-users-panel");
@@ -218,52 +144,72 @@ document.addEventListener("DOMContentLoaded", () => {
       clearTimeout(lookupTimeout);
       const nameToCheck = usernameInput.value.trim();
       if (!nameToCheck) {
-        usernameFeedback.textContent = "";
+        if (usernameFeedback) usernameFeedback.textContent = "";
         return;
       }
       if (currentUsername && nameToCheck.toLowerCase() === currentUsername.toLowerCase()) {
-        usernameFeedback.textContent = "✓ Currently Assigned to Current Session";
-        usernameFeedback.style.color = "#1dd1a1";
+        if (usernameFeedback) {
+          usernameFeedback.textContent = "✓ Currently Assigned to Current Session";
+          usernameFeedback.style.color = "#1dd1a1";
+        }
         return;
       }
 
       lookupTimeout = setTimeout(async () => {
-        const docRef = doc(usernamesCollection, nameToCheck.toLowerCase().replace(/\s+/g, '_'));
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          usernameFeedback.textContent = "✕ Network signature matches taken profile";
-          usernameFeedback.style.color = "#ff4757";
-        } else {
-          usernameFeedback.textContent = "✓ Signature Available across Cluster";
-          usernameFeedback.style.color = "#1dd1a1";
+        try {
+          const docRef = doc(usernamesCollection, nameToCheck.toLowerCase().replace(/\s+/g, '_'));
+          const docSnap = await getDoc(docRef);
+          if (docSnap.exists()) {
+            if (usernameFeedback) {
+              usernameFeedback.textContent = "✕ Network signature matches taken profile";
+              usernameFeedback.style.color = "#ff4757";
+            }
+          } else {
+            if (usernameFeedback) {
+              usernameFeedback.textContent = "✓ Signature Available across Cluster";
+              usernameFeedback.style.color = "#1dd1a1";
+            }
+          }
+        } catch(e) {
+          // Bypassed if database rules block lookups
         }
       }, 400);
     });
   }
 
   // Network Presence Sync Dispatches
-  async function updatePresence(isOnline, isTyping = false) {
+  async function updatePresence(isOnline, isTyping = false, oldName = "") {
     if (!currentUsername) return;
-    const userDocRef = doc(statusCollection, currentUsername.toLowerCase().replace(/\s+/g, '_'));
-    await setDoc(userDocRef, {
-      username: currentUsername,
-      color: currentUserColor,
-      isOnline: isOnline,
-      isTyping: isTyping,
-      isAdmin: checkAdminStatus(currentUsername),
-      lastSeen: Date.now()
-    }, { merge: true }).catch(() => {});
+    try {
+      if (oldName && oldName.toLowerCase() !== currentUsername.toLowerCase()) {
+        const oldDocRef = doc(statusCollection, oldName.toLowerCase().replace(/\s+/g, '_'));
+        await deleteDoc(oldDocRef).catch(() => {});
+      }
+      const userDocRef = doc(statusCollection, currentUsername.toLowerCase().replace(/\s+/g, '_'));
+      await setDoc(userDocRef, {
+        username: currentUsername,
+        color: currentUserColor,
+        isOnline: isOnline,
+        isTyping: isTyping,
+        isAdmin: checkAdminStatus(currentUsername),
+        lastSeen: Date.now()
+      }, { merge: true }).catch(() => {});
+    } catch (e) {
+      console.warn("Presence synchronization skipped due to database settings.");
+    }
   }
 
   async function updateAiPresence(isTyping) {
-    const aiDocRef = doc(statusCollection, "ai_bot");
-    await setDoc(aiDocRef, {
-      username: "AI Bot",
-      color: "#ff9f43",
-      isOnline: true,
-      isTyping: isTyping,
-      lastSeen: Date.now()
-    }, { merge: true }).catch(() => {});
+    try {
+      const aiDocRef = doc(statusCollection, "ai_bot");
+      await setDoc(aiDocRef, {
+        username: "AI Bot",
+        color: "#ff9f43",
+        isOnline: true,
+        isTyping: isTyping,
+        lastSeen: Date.now()
+      }, { merge: true }).catch(() => {});
+    } catch(e) {}
   }
 
   function updateIdentityDisplays() {
@@ -273,7 +219,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (currentUserDisplay) currentUserDisplay.textContent = `${currentUsername}${tag}`;
       if (mobileUserDisplay) mobileUserDisplay.textContent = `Node: ${currentUsername}${tag}`;
       nameModal.classList.add("hidden-modal");
-      updatePresence(true, false);
+      updatePresence(true, false).catch(() => {});
     } else {
       nameModal.classList.remove("hidden-modal");
     }
@@ -282,46 +228,71 @@ document.addEventListener("DOMContentLoaded", () => {
 
   window.addEventListener("beforeunload", () => updatePresence(false, false));
 
+  // ==========================================
+  // BULLETPROOF SETUP ENTRY SIGNATURE PIPELINE
+  // ==========================================
   async function handleUserSetupSave() {
     if (!usernameInput) return;
     const newName = usernameInput.value.trim();
-    if (!newName) return;
-
-    if (newName.toLowerCase() !== currentUsername.toLowerCase()) {
-      const docRef = doc(usernamesCollection, newName.toLowerCase().replace(/\s+/g, '_'));
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        usernameFeedback.textContent = "✕ System error: Handle matches taken signature.";
+    if (!newName) {
+      if (usernameFeedback) {
+        usernameFeedback.textContent = "✕ Identity handle cannot be blank.";
         usernameFeedback.style.color = "#ff4757";
-        return;
       }
-      
-      // Lease Unique Name Signature inside Firestore Node
-      await setDoc(docRef, { uid: "active_user", timestamp: Date.now() });
-      if (currentUsername) {
-        const oldUserRegistryRef = doc(usernamesCollection, currentUsername.toLowerCase().replace(/\s+/g, '_'));
-        await deleteDoc(oldUserRegistryRef).catch(() => {});
-        const oldPresenceRef = doc(statusCollection, currentUsername.toLowerCase().replace(/\s+/g, '_'));
-        await deleteDoc(oldPresenceRef).catch(() => {});
-      }
+      return;
     }
 
+    if (usernameFeedback) {
+      usernameFeedback.textContent = "Authenticating signature...";
+      usernameFeedback.style.color = "#00d2d3";
+    }
+
+    try {
+      if (newName.toLowerCase() !== currentUsername.toLowerCase()) {
+        const docRef = doc(usernamesCollection, newName.toLowerCase().replace(/\s+/g, '_'));
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          if (usernameFeedback) {
+            usernameFeedback.textContent = "✕ System error: Handle matches taken signature.";
+            usernameFeedback.style.color = "#ff4757";
+          }
+          return;
+        }
+        
+        // Lease Unique Name Signature inside Firestore Node
+        await setDoc(docRef, { uid: "active_user", timestamp: Date.now() });
+        if (currentUsername) {
+          const oldDocRef = doc(usernamesCollection, currentUsername.toLowerCase().replace(/\s+/g, '_'));
+          await deleteDoc(oldDocRef).catch(() => {});
+        }
+      }
+    } catch (firebaseError) {
+      // SAFE FALLBACK: Bypasses network blocks/crashes to make sure the app logs you in regardless
+      console.warn("Database registration bypassed: ", firebaseError);
+    }
+
+    const oldName = currentUsername;
     localStorage.setItem("chat_username", newName);
     localStorage.setItem("chat_user_color", currentUserColor);
     currentUsername = newName;
     
     updateIdentityDisplays();
+    if (oldName && oldName !== newName) {
+      updatePresence(true, false, oldName).catch(() => {});
+    }
   }
 
   if (saveNameBtn) {
     saveNameBtn.addEventListener("click", handleUserSetupSave);
   }
 
-  if (changeNameBtn && usernameInput && nameModal) {
-    changeNameBtn.addEventListener("click", () => {
-      usernameInput.value = currentUsername;
-      usernameFeedback.textContent = "";
-      nameModal.classList.remove("hidden-modal");
+  // Bind Enter Key inside signature field to process submission automatically
+  if (usernameInput) {
+    usernameInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        handleUserSetupSave();
+      }
     });
   }
 
@@ -394,94 +365,17 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // Set Up Dynamic Reply State Context Actions
-  function setupReplyContext(msgId, sender, text) {
-    replyingToId = msgId;
-    if (replyUserLabel) replyUserLabel.textContent = `Replying to ${sender}`;
-    if (replyTextLabel) replyTextLabel.textContent = text || "[Image]";
-    if (replyContextContainer) replyContextContainer.classList.remove("hidden");
-    if (messageArea) messageArea.focus();
-  }
-
-  function clearReplyContext() {
-    replyingToId = null;
-    if (replyContextContainer) replyContextContainer.classList.add("hidden");
-  }
-
-  if (cancelReplyBtn) {
-    cancelReplyBtn.addEventListener("click", clearReplyContext);
-  }
-
-  // Handle Interactive Clicks (Reactions, Pins, Deletes, Edits, Replies, Forwards)
   if (chatHistory) {
     chatHistory.addEventListener("click", async (e) => {
-      const target = e.target;
-      const msgId = target.getAttribute("data-id");
-
-      if (target.classList.contains("delete-single-btn")) {
-        if (msgId && confirm("Purge message package node?")) {
-          await deleteDoc(doc(db, "messages", msgId));
+      if (e.target.classList.contains("delete-single-btn")) {
+        const idToDelete = e.target.getAttribute("data-id");
+        if (idToDelete && confirm("Purge message package node?")) {
+          await deleteDoc(doc(db, "messages", idToDelete)).catch(() => {});
         }
       }
-
-      if (target.classList.contains("pin-btn")) {
-        if (msgId) {
-          const isPinned = target.getAttribute("data-pinned") === "true";
-          await updateDoc(doc(db, "messages", msgId), { isPinned: !isPinned });
-        }
-      }
-
-      if (target.classList.contains("reply-btn")) {
-        if (msgId) {
-          const senderName = target.getAttribute("data-sender");
-          const msgText = target.getAttribute("data-text");
-          setupReplyContext(msgId, senderName, msgText);
-        }
-      }
-
-      if (target.classList.contains("edit-btn")) {
-        if (msgId && messageArea) {
-          const originalText = target.getAttribute("data-text");
-          editingMessageId = msgId;
-          messageArea.value = originalText;
-          messageArea.focus();
-          if (sendBtn) sendBtn.title = "Update Data Signature";
-        }
-      }
-
-      if (target.classList.contains("forward-btn")) {
-        if (msgId) {
-          const textToForward = target.getAttribute("data-text");
-          const imgToForward = target.getAttribute("data-img");
-          const targetUser = prompt("Forward packet to channel as signature identity handles:", currentUsername);
-          if (targetUser) {
-            await addDoc(messagesCollection, {
-              sender: targetUser,
-              senderColor: currentUserColor,
-              message: textToForward || "",
-              image: imgToForward || "",
-              time: Date.now()
-            });
-          }
-        }
-      }
-
-      if (target.classList.contains("reaction-trigger")) {
-        if (msgId) {
-          const emoji = target.getAttribute("data-emoji");
-          const docRef = doc(db, "messages", msgId);
-          const docSnap = await getDoc(docRef);
-          if (docSnap.exists()) {
-            const data = docSnap.data();
-            const reactions = data.reactions || {};
-            reactions[emoji] = (reactions[emoji] || 0) + 1;
-            await updateDoc(docRef, { reactions: reactions });
-          }
-        }
-      }
-
-      if (target.classList.contains("chat-img")) {
-        const activeSrc = target.src;
+      if (e.target.classList.contains("chat-img")) {
+        const activeSrc = e.target.src;
+        // Collect all image references currently active on history canvas
         galleryImages = Array.from(document.querySelectorAll(".chat-img")).map(img => img.src);
         const findIdx = galleryImages.indexOf(activeSrc);
         if (zoomModal) {
@@ -492,16 +386,10 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  if (closePinnedPanelBtn && pinnedMessagesContainer) {
-    closePinnedPanelBtn.addEventListener("click", () => {
-      pinnedMessagesContainer.classList.add("hidden");
-    });
-  }
-
   // Mobile Friendly Touch Events Supporting Passive Interceptions
   if (swipeContainer) {
     swipeContainer.addEventListener("touchstart", (e) => {
-      if (currentScale > 1) return;
+      if (currentScale > 1) return; // Disable structural transitions if user is magnified
       isSwiping = true;
       swipeStartX = e.touches[0].clientX;
       swipeCurrentX = swipeStartX;
@@ -516,7 +404,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!isSwiping) return;
       isSwiping = false;
       const deltaX = swipeCurrentX - swipeStartX;
-      if (Math.abs(deltaX) > 50) {
+      if (Math.abs(deltaX) > 50) { // Threshold optimization for fast, highly fluid mobile interactions
         if (deltaX > 0) {
           if (currentGalleryIndex > 0) setupLightboxIndex(currentGalleryIndex - 1);
         } else {
@@ -534,15 +422,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const qMessages = query(messagesCollection, orderBy("time", "asc"));
   onSnapshot(qMessages, (snapshot) => {
     if (!chatHistory) return;
-    
-    // Manage persistent tracking lists for both historical rows and structural pins
-    let activePinnedItemsHtml = "";
-    let hasPins = false;
-    
     chatHistory.innerHTML = "";
     if (snapshot.empty) {
       chatHistory.innerHTML = `<div class="system-msg">Room buffers empty. Channel fully secured.</div>`;
-      if (pinnedMessagesContainer) pinnedMessagesContainer.classList.add("hidden");
       return;
     }
 
@@ -560,17 +442,6 @@ document.addEventListener("DOMContentLoaded", () => {
       const customUserColor = data.senderColor || "var(--accent)";
       const firstInitial = data.sender ? data.sender.charAt(0).toUpperCase() : "?";
 
-      // Render Pin Tracking Layouts
-      if (data.isPinned) {
-        hasPins = true;
-        activePinnedItemsHtml += `
-          <div class="pinned-item-row">
-            <span class="pinned-meta">${data.sender || 'Anon'}: ${data.message || '[Asset Attachment]'}</span>
-            <button class="pin-btn unpin-indicator" data-id="${msgId}" data-pinned="true" style="background:transparent;border:none;color:var(--accent);cursor:pointer;">✕</button>
-          </div>
-        `;
-      }
-
       let innerContent = "";
       if (!isConsecutive) {
         const isAdmin = checkAdminStatus(data.sender);
@@ -582,68 +453,19 @@ document.addEventListener("DOMContentLoaded", () => {
       }
       
       innerContent += `<div class="bubble-layout">`;
-      
-      // If referencing contextual quoted parents (Reply Engine Rendering)
-      if (data.replyingToText) {
-        innerContent += `
-          <div class="quoted-context-bubble" style="background:rgba(255,255,255,0.04); border-left:3px solid ${customUserColor}; padding:4px 8px; margin-bottom:4px; border-radius:4px; font-size:12px; opacity:0.8;">
-            <div style="font-weight:bold; font-size:10px; color:${customUserColor};">Quoting ${data.replyingToUser || 'Anonymous'}</div>
-            <div>${data.replyingToText}</div>
-          </div>
-        `;
-      }
-
       if (data.image) innerContent += `<img src="${data.image}" class="chat-img" alt="Shared Asset">`;
+      if (data.message) innerContent += `<div class="bubble" style="${isMe ? `background:${customUserColor};color:#111;` : ''}">${data.message}</div>`;
       
-      if (data.message) {
-        const editedTag = data.isEdited ? ` <span class="edited-label" style="font-size:10px; opacity:0.5; font-style:italic;">(edited)</span>` : "";
-        innerContent += `<div class="bubble" style="${isMe ? `background:${customUserColor};color:#111;` : ''}">${data.message}${editedTag}</div>`;
-      }
-      
-      // Reaction Engine Presentation Layout Matrix
-      let reactionChips = "";
-      if (data.reactions) {
-        Object.entries(data.reactions).forEach(([emoji, count]) => {
-          if (count > 0) {
-            reactionChips += `<span class="reaction-chip" style="background:rgba(255,255,255,0.08); padding:2px 6px; border-radius:8px; font-size:11px; margin-right:4px;">${emoji} ${count}</span>`;
-          }
-        });
-      }
-
       innerContent += `
-          <div class="reactions-wrapper-row" style="margin-top:4px; display:flex; flex-wrap:wrap;">
-            ${reactionChips}
-          </div>
           <div class="bubble-sub">
             <span class="timestamp">${timeString}</span>
-            <div class="action-toolbar-row" style="display:inline-flex; gap:8px; margin-left:8px; opacity:0.7;">
-              <span class="reaction-trigger" data-id="${msgId}" data-emoji="👍" style="cursor:pointer;" title="React 👍">👍</span>
-              <span class="reaction-trigger" data-id="${msgId}" data-emoji="🔥" style="cursor:pointer;" title="React 🔥">🔥</span>
-              <span class="reply-btn" data-id="${msgId}" data-sender="${data.sender || 'Anonymous'}" data-text="${data.message || ''}" style="cursor:pointer;" title="Quote Reply">↩️</span>
-              <span class="forward-btn" data-id="${msgId}" data-text="${data.message || ''}" data-img="${data.image || ''}" style="cursor:pointer;" title="Forward message">➡️</span>
-              ${isMe ? `<span class="edit-btn" data-id="${msgId}" data-text="${data.message || ''}" style="cursor:pointer;" title="Edit Packet">✏️</span>` : ''}
-              <span class="pin-btn" data-id="${msgId}" data-pinned="${data.isPinned ? 'true' : 'false'}" style="cursor:pointer;" title="Toggle Pin">${data.isPinned ? '📌' : '📍'}</span>
-              <span class="delete-single-btn" data-id="${msgId}" style="cursor:pointer;" title="Purge Log">🗑️</span>
-            </div>
+            <span class="delete-single-btn" data-id="${msgId}">🗑️</span>
           </div>
         </div>
       `;
       msgElement.innerHTML = innerContent;
       chatHistory.appendChild(msgElement);
     });
-
-    // Toggle Visibility of Pinned Matrix Modules dynamically
-    if (pinnedMessagesContainer && pinnedMessagesList) {
-      if (hasPins) {
-        pinnedMessagesList.innerHTML = activePinnedItemsHtml;
-        pinnedMessagesContainer.classList.remove("hidden");
-      } else {
-        pinnedMessagesContainer.classList.add("hidden");
-      }
-    }
-
-    // Apply local query constraints dynamically if filters are preset
-    if (searchQueryStr) triggerLocalFiltering();
 
     // Mobile safe scroll tracking updates
     setTimeout(() => {
@@ -656,7 +478,7 @@ document.addEventListener("DOMContentLoaded", () => {
      setTimeout(() => { if (chatHistory) chatHistory.scrollTop = chatHistory.scrollHeight; }, 100);
   });
 
-  // Active Terminal Directory Synchronizer with "Last seen at..." support
+  // Active Terminal Directory Synchronizer
   onSnapshot(statusCollection, (snapshot) => {
     if (!onlineUsersList) return;
     onlineUsersList.innerHTML = "";
@@ -670,33 +492,19 @@ document.addEventListener("DOMContentLoaded", () => {
     let typingUsers = [];
     snapshot.forEach(docSnap => {
       const data = docSnap.data();
-      const timeDiff = Date.now() - (data.lastSeen || 0);
-      const isRecent = timeDiff < 120000;
-      
-      if (data.username !== "AI Bot") {
+      const isRecent = (Date.now() - data.lastSeen) < 120000;
+      if (data.username !== "AI Bot" && data.isOnline && isRecent) {
         const firstLetter = data.username ? data.username.charAt(0).toUpperCase() : "?";
         const adminTag = checkAdminStatus(data.username) ? "👑 " : "";
         const userRow = document.createElement("div");
         userRow.className = "online-user-item";
-        
-        // Dynamic construction of real-time offline markers ("Last seen at...")
-        let statusMetadataStr = "Offline";
-        if (data.isOnline && isRecent) {
-          statusMetadataStr = "Active Matrix Now";
-        } else if (data.lastSeen) {
-          statusMetadataStr = `Seen ${new Date(data.lastSeen).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
-        }
-
         userRow.innerHTML = `
           <div class="mini-avatar" style="background:${data.color || 'var(--accent)'}">${firstLetter}</div>
-          <div style="display:flex; flex-direction:column;">
-            <span style="font-weight:600;">${adminTag}${data.username}</span>
-            <span style="font-size:9px; opacity:0.6;">${statusMetadataStr}</span>
-          </div>
+          <span>${adminTag}${data.username}</span>
         `;
         onlineUsersList.appendChild(userRow);
 
-        if (data.isOnline && isRecent && data.isTyping && data.username !== currentUsername) {
+        if (data.isTyping && data.username !== currentUsername) {
           typingUsers.push(data.username);
         }
       }
@@ -715,7 +523,7 @@ document.addEventListener("DOMContentLoaded", () => {
     try {
       updateAiPresence(true);
       aiContextMemory.push({ role: "user", content: userPrompt });
-      if (aiContextMemory.length > 12) aiContextMemory.shift();
+      if (aiContextMemory.length > 12) aiContextMemory.shift(); // Bound memory packet size
 
       const payloadMessages = [
         { role: "system", content: "You are a swift, hyper-optimized conversational engineer assistant built inside GhostChat channel. Keep structural formatting tight, markdown clean, and replies professional." },
@@ -749,9 +557,9 @@ document.addEventListener("DOMContentLoaded", () => {
   if (messageArea) {
     messageArea.addEventListener("input", (e) => {
       localStorage.setItem("chat_draft", e.target.value);
-      updatePresence(true, true);
+      updatePresence(true, true).catch(() => {});
       clearTimeout(typingTimeout);
-      typingTimeout = setTimeout(() => updatePresence(true, false), 2500);
+      typingTimeout = setTimeout(() => updatePresence(true, false).catch(() => {}), 2500);
     });
     messageArea.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); sendBtn.click(); } });
   }
@@ -762,44 +570,23 @@ document.addEventListener("DOMContentLoaded", () => {
       const text = messageArea.value.trim();
       if (!text && !selectedImageBase64) return;
 
-      // Check if updating an existing message signature (Message Editing)
-      if (editingMessageId) {
-        await updateDoc(doc(db, "messages", editingMessageId), {
-          message: text,
-          isEdited: true
-        });
-        editingMessageId = null;
-        sendBtn.title = "Broadcast Data Signature Packet";
-      } else {
-        // Compose standard or reply transmission packet signatures
-        let packetPayload = {
-          sender: currentUsername || "Anonymous",
-          senderColor: currentUserColor,
-          message: text,
-          image: selectedImageBase64,
-          time: Date.now()
-        };
-
-        if (replyingToId) {
-          packetPayload.replyingToId = replyingToId;
-          packetPayload.replyingToUser = replyUserLabel.textContent.replace("Replying to ", "");
-          packetPayload.replyingToText = replyTextLabel.textContent;
-        }
-
-        await addDoc(messagesCollection, packetPayload);
-      }
+      await addDoc(messagesCollection, {
+        sender: currentUsername || "Anonymous",
+        senderColor: currentUserColor,
+        message: text,
+        image: selectedImageBase64,
+        time: Date.now()
+      }).catch(() => {});
 
       messageArea.value = "";
       localStorage.removeItem("chat_draft");
       selectedImageBase64 = "";
-      clearReplyContext();
-      
       if (imageInput) imageInput.value = "";
       if (cameraInput) cameraInput.value = "";
       if (imagePreviewContainer) imagePreviewContainer.classList.add("hidden");
       
       clearTimeout(typingTimeout);
-      updatePresence(true, false);
+      updatePresence(true, false).catch(() => {});
 
       if (text.toLowerCase().startsWith("@ai")) {
         const cleanedPrompt = text.replace(/^@ai\s*/i, "").trim();
