@@ -37,6 +37,13 @@ let selectedImageBase64 = "";
 let typingTimeout = null;
 let aiContextMemory = [];
 
+// Dynamic Interaction State Parameters
+let editMessageId = null;
+let replyMessageId = null;
+let replySender = "";
+let replyText = "";
+let savedGeneralDraft = ""; 
+
 // Theme & Viewport Scaling Configuration
 const themes = ["#1e2330", "#2c1a30", "#1a2e26", "#301a1a"];
 let currentThemeIndex = parseInt(localStorage.getItem("chat_theme_index")) || 0;
@@ -75,6 +82,73 @@ function checkAdminStatus(name) {
   return clean === "ace" || clean === "ghost";
 }
 
+// Inject structural styling for Contextual & Reaction features dynamically
+const dynamicStyleNode = document.createElement("style");
+dynamicStyleNode.id = "dynamic-contextual-styles";
+dynamicStyleNode.innerHTML = `
+  .quote-reply-block {
+    font-size: 12px;
+    background: rgba(255, 255, 255, 0.05);
+    border-left: 3px solid var(--accent);
+    padding: 6px 10px;
+    margin-bottom: 6px;
+    border-radius: 6px;
+    color: var(--text-muted);
+    text-align: left;
+    max-width: 100%;
+    cursor: pointer;
+  }
+  .quote-reply-block strong {
+    color: var(--text-white);
+  }
+  .bubble-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .bubble-actions span {
+    cursor: pointer;
+    opacity: 0.5;
+    transition: var(--transition-smooth);
+    user-select: none;
+  }
+  .bubble-actions span:hover {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+  .msg-reactions-container {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    margin-top: 6px;
+  }
+  .reaction-pill {
+    display: inline-flex;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 2px 6px;
+    font-size: 11px;
+    cursor: pointer;
+    transition: var(--transition-smooth);
+    color: var(--text-muted);
+  }
+  .reaction-pill:hover {
+    border-color: var(--accent);
+    background: rgba(255, 255, 255, 0.08);
+  }
+  .reaction-pill.active {
+    background: var(--accent-glow) !important;
+    border-color: var(--accent) !important;
+    color: var(--accent) !important;
+  }
+  .emoji-picker-popup {
+    transition: opacity 0.15s ease;
+  }
+`;
+document.head.appendChild(dynamicStyleNode);
+
 document.addEventListener("DOMContentLoaded", () => {
   applyChatFontSize(currentFontSize);
 
@@ -111,6 +185,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const onlineUsersList = document.getElementById("onlineUsersList");
   const typingIndicator = document.getElementById("typingIndicator");
+
+  // Thread UI Banner Caches
+  const activeContextBanner = document.getElementById("activeContextBanner");
+  const contextTypeLabel = document.getElementById("contextTypeLabel");
+  const contextTextPreview = document.getElementById("contextTextPreview");
+  const cancelContextBtn = document.getElementById("cancelContextBtn");
 
   if (chatContainer) chatContainer.style.backgroundColor = themes[currentThemeIndex];
   if (messageArea) messageArea.value = localStorage.getItem("chat_draft") || "";
@@ -326,6 +406,126 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  // Active Context Controllers
+  function setContext(type, msgId, text, sender = "", color = "var(--accent)") {
+    if (!messageArea || !activeContextBanner) return;
+
+    if (!editMessageId && !replyMessageId) {
+      savedGeneralDraft = messageArea.value;
+    }
+
+    if (type === "edit") {
+      editMessageId = msgId;
+      replyMessageId = null;
+      contextTypeLabel.textContent = "Editing Message:";
+      contextTextPreview.textContent = text;
+      messageArea.value = text;
+      messageArea.focus();
+    } else if (type === "reply") {
+      replyMessageId = msgId;
+      editMessageId = null;
+      replySender = sender;
+      replyText = text;
+      contextTypeLabel.textContent = `Replying to @${sender}:`;
+      contextTextPreview.textContent = text;
+      messageArea.value = ""; 
+      messageArea.focus();
+    }
+
+    activeContextBanner.classList.remove("hidden");
+  }
+
+  function clearContext() {
+    if (activeContextBanner) activeContextBanner.classList.add("hidden");
+    if (editMessageId || replyMessageId) {
+      messageArea.value = savedGeneralDraft;
+    }
+    editMessageId = null;
+    replyMessageId = null;
+    replySender = "";
+    replyText = "";
+  }
+
+  if (cancelContextBtn) {
+    cancelContextBtn.addEventListener("click", clearContext);
+  }
+
+  // Dynamically Toggles Reaction Map In Firestore
+  async function toggleEmojiReaction(msgId, emoji) {
+    if (!currentUsername) return;
+    const docRef = doc(db, "messages", msgId);
+    const docSnap = await getDoc(docRef);
+    if (!docSnap.exists()) return;
+
+    const data = docSnap.data();
+    const reactions = data.reactions || {};
+
+    if (!reactions[emoji]) {
+      reactions[emoji] = [];
+    }
+
+    const userIdx = reactions[emoji].indexOf(currentUsername);
+    if (userIdx > -1) {
+      reactions[emoji].splice(userIdx, 1);
+    } else {
+      reactions[emoji].push(currentUsername);
+    }
+
+    if (reactions[emoji].length === 0) {
+      delete reactions[emoji];
+    }
+
+    await setDoc(docRef, { reactions }, { merge: true });
+  }
+
+  // Dynamic Custom Floating Emoji Picker Node Generation
+  function showEmojiPicker(targetElement, msgId) {
+    const existing = document.querySelector(".emoji-picker-popup");
+    if (existing) existing.remove();
+
+    const picker = document.createElement("div");
+    picker.className = "emoji-picker-popup";
+    picker.style.cssText = `
+      position: absolute;
+      background: var(--bg-side);
+      border: 1px solid var(--border-glow);
+      border-radius: 20px;
+      padding: 6px 10px;
+      display: flex;
+      gap: 8px;
+      z-index: 1000;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+    `;
+
+    const emojis = ["👍", "❤️", "😂", "😮", "😢", "🔥"];
+    emojis.forEach(emoji => {
+      const btn = document.createElement("span");
+      btn.textContent = emoji;
+      btn.style.cssText = "cursor: pointer; font-size: 16px; transition: transform 0.1s;";
+      btn.addEventListener("mouseover", () => btn.style.transform = "scale(1.3)");
+      btn.addEventListener("mouseout", () => btn.style.transform = "scale(1.0)");
+      btn.addEventListener("click", async () => {
+        await toggleEmojiReaction(msgId, emoji);
+        picker.remove();
+      });
+      picker.appendChild(btn);
+    });
+
+    document.body.appendChild(picker);
+
+    const rect = targetElement.getBoundingClientRect();
+    picker.style.top = `${rect.top + window.scrollY - 40}px`;
+    picker.style.left = `${rect.left + window.scrollX - 20}px`;
+
+    const closeHandler = (e) => {
+      if (!picker.contains(e.target) && e.target !== targetElement) {
+        picker.remove();
+        document.removeEventListener("click", closeHandler);
+      }
+    };
+    setTimeout(() => document.addEventListener("click", closeHandler), 50);
+  }
+
   if (chatHistory) {
     chatHistory.addEventListener("click", async (e) => {
       if (e.target.classList.contains("delete-single-btn")) {
@@ -334,6 +534,38 @@ document.addEventListener("DOMContentLoaded", () => {
           await deleteDoc(doc(db, "messages", idToDelete));
         }
       }
+
+      // Context Edit Activation Event
+      if (e.target.classList.contains("edit-btn")) {
+        const msgId = e.target.getAttribute("data-id");
+        const origMsg = decodeURIComponent(e.target.getAttribute("data-msg"));
+        setContext("edit", msgId, origMsg);
+      }
+
+      // Context Reply Activation Event
+      if (e.target.classList.contains("reply-btn")) {
+        const msgId = e.target.getAttribute("data-id");
+        const sender = decodeURIComponent(e.target.getAttribute("data-sender"));
+        const origMsg = decodeURIComponent(e.target.getAttribute("data-msg"));
+        setContext("reply", msgId, origMsg, sender);
+      }
+
+      // Quick-React Action Picker Activation Event
+      if (e.target.classList.contains("react-trigger")) {
+        const msgId = e.target.getAttribute("data-id");
+        showEmojiPicker(e.target, msgId);
+      }
+
+      // Inline Reaction Pill Click Handler
+      const reactionPill = e.target.closest(".reaction-pill");
+      if (reactionPill) {
+        const msgId = reactionPill.getAttribute("data-id");
+        const emoji = reactionPill.getAttribute("data-emoji");
+        if (msgId && emoji) {
+          await toggleEmojiReaction(msgId, emoji);
+        }
+      }
+
       if (e.target.classList.contains("chat-img")) {
         const activeSrc = e.target.src;
         // Collect all image references currently active on history canvas
@@ -414,13 +646,50 @@ document.addEventListener("DOMContentLoaded", () => {
       }
       
       innerContent += `<div class="bubble-layout">`;
+      
+      // Inline Quoted Reply Rendering
+      if (data.replyTo) {
+        innerContent += `
+          <div class="quote-reply-block" style="border-left-color: ${data.replyTo.color || 'var(--accent)'}">
+            <strong>@${data.replyTo.sender}</strong>: ${data.replyTo.message}
+          </div>
+        `;
+      }
+
       if (data.image) innerContent += `<img src="${data.image}" class="chat-img" alt="Shared Asset">`;
       if (data.message) innerContent += `<div class="bubble" style="${isMe ? `background:${customUserColor};color:#111;` : ''}">${data.message}</div>`;
       
+      // Dynamic Inline Reaction Rendering
+      if (data.reactions && Object.keys(data.reactions).length > 0) {
+        innerContent += `<div class="msg-reactions-container">`;
+        for (const [emoji, users] of Object.entries(data.reactions)) {
+          if (users && users.length > 0) {
+            const hasReacted = users.includes(currentUsername);
+            innerContent += `
+              <div class="reaction-pill ${hasReacted ? 'active' : ''}" data-id="${msgId}" data-emoji="${emoji}" title="${users.join(', ')}">
+                <span>${emoji}</span> <span style="font-size: 10px; margin-left: 3px;">${users.length}</span>
+              </div>
+            `;
+          }
+        }
+        innerContent += `</div>`;
+      }
+
+      // Inline Tooling Operations Controls (Edit, Reply, React, Delete)
+      const editedLabel = data.edited ? `<span class="edited-label" style="font-size: 9px; opacity: 0.6; margin-right: 4px;">(edited)</span>` : "";
+      const editBtn = isMe ? `<span class="edit-btn" data-id="${msgId}" data-msg="${encodeURIComponent(data.message || '')}" title="Edit Message">✏️</span>` : "";
+      const replyBtn = `<span class="reply-btn" data-id="${msgId}" data-sender="${encodeURIComponent(data.sender || 'Anonymous')}" data-msg="${encodeURIComponent(data.message || (data.image ? '[Image Attachment]' : ''))}" title="Reply">💬</span>`;
+      const reactTrigger = `<span class="react-trigger" data-id="${msgId}" title="React">😀</span>`;
+
       innerContent += `
           <div class="bubble-sub">
-            <span class="timestamp">${timeString}</span>
-            <span class="delete-single-btn" data-id="${msgId}">🗑️</span>
+            <span class="timestamp">${editedLabel}${timeString}</span>
+            <div class="bubble-actions">
+              ${reactTrigger}
+              ${replyBtn}
+              ${editBtn}
+              <span class="delete-single-btn" data-id="${msgId}" title="Delete">🗑️</span>
+            </div>
           </div>
         </div>
       `;
@@ -497,8 +766,8 @@ document.addEventListener("DOMContentLoaded", () => {
         body: JSON.stringify({ messages: payloadMessages })
       });
 
-      const replyText = await response.text();
-      const responseClean = replyText ? replyText.trim() : "System cluster response error: empty buffer pipeline.";
+      const replyTextResult = await response.text();
+      const responseClean = replyTextResult ? replyTextResult.trim() : "System cluster response error: empty buffer pipeline.";
       
       aiContextMemory.push({ role: "assistant", content: responseClean });
       
@@ -531,13 +800,37 @@ document.addEventListener("DOMContentLoaded", () => {
       const text = messageArea.value.trim();
       if (!text && !selectedImageBase64) return;
 
-      await addDoc(messagesCollection, {
-        sender: currentUsername || "Anonymous",
-        senderColor: currentUserColor,
-        message: text,
-        image: selectedImageBase64,
-        time: Date.now()
-      });
+      if (editMessageId) {
+        // Handle Message Edits
+        const docRef = doc(db, "messages", editMessageId);
+        await setDoc(docRef, {
+          message: text,
+          edited: true
+        }, { merge: true });
+
+        clearContext();
+      } else {
+        // Handle Standard Message Transmission or Replies
+        const payload = {
+          sender: currentUsername || "Anonymous",
+          senderColor: currentUserColor,
+          message: text,
+          image: selectedImageBase64,
+          time: Date.now()
+        };
+
+        if (replyMessageId) {
+          payload.replyTo = {
+            id: replyMessageId,
+            sender: replySender,
+            message: replyText,
+            color: currentUserColor
+          };
+        }
+
+        await addDoc(messagesCollection, payload);
+        clearContext();
+      }
 
       messageArea.value = "";
       localStorage.removeItem("chat_draft");
@@ -549,7 +842,7 @@ document.addEventListener("DOMContentLoaded", () => {
       clearTimeout(typingTimeout);
       updatePresence(true, false);
 
-      if (text.toLowerCase().startsWith("@ai")) {
+      if (text.toLowerCase().startsWith("@ai") && !editMessageId) {
         const cleanedPrompt = text.replace(/^@ai\s*/i, "").trim();
         if (cleanedPrompt) fetchAiReply(cleanedPrompt);
       }
