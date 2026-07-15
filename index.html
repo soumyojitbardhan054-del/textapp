@@ -10,9 +10,8 @@
 
 <div id="nameModal" class="modal">
     <div class="modal-content">
-        <h2>Join Private Session</h2>
-        <p>Enter your identity details and choose a workspace.</p>
-        
+        <h2>Setup Identity</h2>
+        <p>Please enter your name and choose a profile color.</p>
         <input type="text" id="usernameInput" placeholder="e.g., brine or jia">
         
         <div class="color-picker-label">Pick Profile Accent:</div>
@@ -23,11 +22,6 @@
             <div class="color-dot" data-color="#1dd1a1" style="background: #1dd1a1;"></div>
             <div class="color-dot" data-color="#a55eea" style="background: #a55eea;"></div>
         </div>
-
-        <hr style="border: 0; border-top: 1px solid #2b313f; margin: 15px 0;">
-
-        <div class="color-picker-label">Invite Code Setup:</div>
-        <input type="text" id="roomCodeInput" placeholder="Enter 6-digit Room Code" maxlength="6" style="margin-bottom: 12px; font-family: monospace; letter-spacing: 2px;">
 
         <button id="saveNameBtn">Enter Chatroom</button>
     </div>
@@ -43,9 +37,17 @@
                 <span id="currentUserDisplay">Connecting...</span>
                 <span class="status-dot"></span>
             </div>
-            <div class="user-card" style="background: #1a202c; border: 1px solid #2b313f; margin-top: -5px;">
-                <span id="currentRoomDisplay" style="font-family: monospace; color: var(--accent);">Room: None</span>
+            
+            <div class="room-management-panel" style="background: #222938; padding: 10px; border-radius: 8px; display: flex; flex-direction: column; gap: 8px;">
+                <h4 style="margin: 0; font-size: 12px; text-transform: uppercase; color: var(--text-muted);">Rooms</h4>
+                <div style="display: flex; gap: 4px;">
+                    <input type="text" id="roomCodeInput" placeholder="Invite Code" style="flex: 1; background: var(--bg-main); border: 1px solid #2b313f; color: white; border-radius: 4px; padding: 4px; font-size: 12px; outline: none;">
+                    <button id="joinRoomBtn" class="secondary-btn" style="padding: 4px 8px;">Join</button>
+                </div>
+                <button id="defaultGlobalBtn" class="secondary-btn" style="background: var(--accent); color: #111; padding: 4px 0; width: 100%;">🌐 Global Chat</button>
+                <div id="currentRoomDisplay" style="font-size: 11px; color: var(--text-muted); text-align: center; margin-top: 2px;">Active: global</div>
             </div>
+
             <div class="active-users-panel">
                 <h4>Online Users</h4>
                 <div id="onlineUsersList"></div>
