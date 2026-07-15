@@ -149,7 +149,7 @@ document.addEventListener("DOMContentLoaded", () => {
       color: currentUserColor,
       isOnline: isOnline,
       isTyping: isTyping,
-      room: currentRoom, // Scope status to the active room
+      room: currentRoom, 
       lastSeen: Date.now()
     }, { merge: true }).catch(err => console.error("Presence update failed:", err));
   }
@@ -189,7 +189,6 @@ document.addEventListener("DOMContentLoaded", () => {
     currentAnswer = null;
     warningTwoMinSent = false;
     
-    // Update presence to reflect new room
     updatePresence(true, false);
 
     // 1. Listen to Messages
@@ -208,9 +207,14 @@ document.addEventListener("DOMContentLoaded", () => {
         const data = snapshotDoc.data();
         const msgId = snapshotDoc.id;
         const msgElement = document.createElement("div");
-        const isMe = data.sender.toLowerCase() === currentUsername.toLowerCase();
-        const isConsecutive = data.sender.toLowerCase() === lastSender.toLowerCase();
-        lastSender = data.sender;
+        
+        // CRITICAL BUG FIX: Guard against missing or malformed sender fields
+        const senderName = data.sender || "Anonymous";
+        const cleanCurrentUsername = currentUsername || "";
+        
+        const isMe = senderName.toLowerCase() === cleanCurrentUsername.toLowerCase();
+        const isConsecutive = lastSender ? senderName.toLowerCase() === lastSender.toLowerCase() : false;
+        lastSender = senderName;
 
         msgElement.className = `message-wrapper ${isMe ? "me" : "them"} ${isConsecutive ? "consecutive" : ""}`;
 
@@ -219,7 +223,7 @@ document.addEventListener("DOMContentLoaded", () => {
           : "";
 
         const customUserColor = data.senderColor || "var(--accent)";
-        const firstInitial = data.sender ? data.sender.charAt(0).toUpperCase() : "?";
+        const firstInitial = senderName.charAt(0).toUpperCase();
 
         let cleanedMessage = data.message || "";
         if (cleanedMessage) {
@@ -237,7 +241,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!isConsecutive) {
           innerContent += `<div class="message-meta">
             <div class="user-avatar-circle" style="background:${customUserColor}">${firstInitial}</div>
-            <span class="sender-name" style="color:${customUserColor}">${data.sender}</span>
+            <span class="sender-name" style="color:${customUserColor}">${senderName}</span>
           </div>`;
         }
         
@@ -527,7 +531,6 @@ document.addEventListener("DOMContentLoaded", () => {
       const data = docSnap.data();
       const isRecent = (Date.now() - data.lastSeen) < 120000;
 
-      // Only show real users who are online, active recently, AND in the same room
       if (data.username !== "AI Bot" && data.username !== "GOD" && data.isOnline && isRecent && data.room === currentRoom) {
         if (onlineUsersList) {
           const firstLetter = data.username ? data.username.charAt(0).toUpperCase() : "?";
