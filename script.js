@@ -144,34 +144,24 @@ document.addEventListener("DOMContentLoaded", () => {
       clearTimeout(lookupTimeout);
       const nameToCheck = usernameInput.value.trim();
       if (!nameToCheck) {
-        if (usernameFeedback) usernameFeedback.textContent = "";
+        usernameFeedback.textContent = "";
         return;
       }
       if (currentUsername && nameToCheck.toLowerCase() === currentUsername.toLowerCase()) {
-        if (usernameFeedback) {
-          usernameFeedback.textContent = "✓ Currently Assigned to Current Session";
-          usernameFeedback.style.color = "#1dd1a1";
-        }
+        usernameFeedback.textContent = "✓ Currently Assigned to Current Session";
+        usernameFeedback.style.color = "#1dd1a1";
         return;
       }
 
       lookupTimeout = setTimeout(async () => {
-        try {
-          const docRef = doc(usernamesCollection, nameToCheck.toLowerCase().replace(/\s+/g, '_'));
-          const docSnap = await getDoc(docRef);
-          if (docSnap.exists()) {
-            if (usernameFeedback) {
-              usernameFeedback.textContent = "✕ Network signature matches taken profile";
-              usernameFeedback.style.color = "#ff4757";
-            }
-          } else {
-            if (usernameFeedback) {
-              usernameFeedback.textContent = "✓ Signature Available across Cluster";
-              usernameFeedback.style.color = "#1dd1a1";
-            }
-          }
-        } catch(e) {
-          // Bypassed if database rules block lookups
+        const docRef = doc(usernamesCollection, nameToCheck.toLowerCase().replace(/\s+/g, '_'));
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          usernameFeedback.textContent = "✕ Network signature matches taken profile";
+          usernameFeedback.style.color = "#ff4757";
+        } else {
+          usernameFeedback.textContent = "✓ Signature Available across Cluster";
+          usernameFeedback.style.color = "#1dd1a1";
         }
       }, 400);
     });
@@ -180,36 +170,30 @@ document.addEventListener("DOMContentLoaded", () => {
   // Network Presence Sync Dispatches
   async function updatePresence(isOnline, isTyping = false, oldName = "") {
     if (!currentUsername) return;
-    try {
-      if (oldName && oldName.toLowerCase() !== currentUsername.toLowerCase()) {
-        const oldDocRef = doc(statusCollection, oldName.toLowerCase().replace(/\s+/g, '_'));
-        await deleteDoc(oldDocRef).catch(() => {});
-      }
-      const userDocRef = doc(statusCollection, currentUsername.toLowerCase().replace(/\s+/g, '_'));
-      await setDoc(userDocRef, {
-        username: currentUsername,
-        color: currentUserColor,
-        isOnline: isOnline,
-        isTyping: isTyping,
-        isAdmin: checkAdminStatus(currentUsername),
-        lastSeen: Date.now()
-      }, { merge: true }).catch(() => {});
-    } catch (e) {
-      console.warn("Presence synchronization skipped due to database settings.");
+    if (oldName && oldName.toLowerCase() !== currentUsername.toLowerCase()) {
+      const oldDocRef = doc(statusCollection, oldName.toLowerCase().replace(/\s+/g, '_'));
+      await deleteDoc(oldDocRef).catch(() => {});
     }
+    const userDocRef = doc(statusCollection, currentUsername.toLowerCase().replace(/\s+/g, '_'));
+    await setDoc(userDocRef, {
+      username: currentUsername,
+      color: currentUserColor,
+      isOnline: isOnline,
+      isTyping: isTyping,
+      isAdmin: checkAdminStatus(currentUsername),
+      lastSeen: Date.now()
+    }, { merge: true }).catch(() => {});
   }
 
   async function updateAiPresence(isTyping) {
-    try {
-      const aiDocRef = doc(statusCollection, "ai_bot");
-      await setDoc(aiDocRef, {
-        username: "AI Bot",
-        color: "#ff9f43",
-        isOnline: true,
-        isTyping: isTyping,
-        lastSeen: Date.now()
-      }, { merge: true }).catch(() => {});
-    } catch(e) {}
+    const aiDocRef = doc(statusCollection, "ai_bot");
+    await setDoc(aiDocRef, {
+      username: "AI Bot",
+      color: "#ff9f43",
+      isOnline: true,
+      isTyping: isTyping,
+      lastSeen: Date.now()
+    }, { merge: true }).catch(() => {});
   }
 
   function updateIdentityDisplays() {
@@ -219,7 +203,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (currentUserDisplay) currentUserDisplay.textContent = `${currentUsername}${tag}`;
       if (mobileUserDisplay) mobileUserDisplay.textContent = `Node: ${currentUsername}${tag}`;
       nameModal.classList.add("hidden-modal");
-      updatePresence(true, false).catch(() => {});
+      updatePresence(true, false);
     } else {
       nameModal.classList.remove("hidden-modal");
     }
@@ -228,47 +212,26 @@ document.addEventListener("DOMContentLoaded", () => {
 
   window.addEventListener("beforeunload", () => updatePresence(false, false));
 
-  // ==========================================
-  // FIXED COMPREHENSIVE LOGIN PIPELINE
-  // ==========================================
   async function handleUserSetupSave() {
     if (!usernameInput) return;
     const newName = usernameInput.value.trim();
-    if (!newName) {
-      if (usernameFeedback) {
-        usernameFeedback.textContent = "✕ Identity handle cannot be blank.";
+    if (!newName) return;
+
+    if (newName.toLowerCase() !== currentUsername.toLowerCase()) {
+      const docRef = doc(usernamesCollection, newName.toLowerCase().replace(/\s+/g, '_'));
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        usernameFeedback.textContent = "✕ System error: Handle matches taken signature.";
         usernameFeedback.style.color = "#ff4757";
+        return;
       }
-      return;
-    }
-
-    if (usernameFeedback) {
-      usernameFeedback.textContent = "Authenticating signature...";
-      usernameFeedback.style.color = "#00d2d3";
-    }
-
-    try {
-      if (newName.toLowerCase() !== currentUsername.toLowerCase()) {
-        const docRef = doc(usernamesCollection, newName.toLowerCase().replace(/\s+/g, '_'));
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          if (usernameFeedback) {
-            usernameFeedback.textContent = "✕ System error: Handle matches taken signature.";
-            usernameFeedback.style.color = "#ff4757";
-          }
-          return;
-        }
-        
-        // Lease Unique Name Signature inside Firestore Node
-        await setDoc(docRef, { uid: "active_user", timestamp: Date.now() });
-        if (currentUsername) {
-          const oldDocRef = doc(usernamesCollection, currentUsername.toLowerCase().replace(/\s+/g, '_'));
-          await deleteDoc(oldDocRef).catch(() => {});
-        }
+      
+      // Lease Unique Name Signature inside Firestore Node
+      await setDoc(docRef, { uid: "active_user", timestamp: Date.now() });
+      if (currentUsername) {
+        const oldDocRef = doc(usernamesCollection, currentUsername.toLowerCase().replace(/\s+/g, '_'));
+        await deleteDoc(oldDocRef).catch(() => {});
       }
-    } catch (firebaseError) {
-      // PROACTIVE FAILSAFE: Instantly logs you into the dashboard regardless of network or Firestore security conditions
-      console.warn("Database registration bypassed: ", firebaseError);
     }
 
     const oldName = currentUsername;
@@ -278,7 +241,7 @@ document.addEventListener("DOMContentLoaded", () => {
     
     updateIdentityDisplays();
     if (oldName && oldName !== newName) {
-      updatePresence(true, false, oldName).catch(() => {});
+      updatePresence(true, false, oldName);
     }
   }
 
@@ -286,12 +249,11 @@ document.addEventListener("DOMContentLoaded", () => {
     saveNameBtn.addEventListener("click", handleUserSetupSave);
   }
 
-  if (usernameInput) {
-    usernameInput.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        handleUserSetupSave();
-      }
+  if (changeNameBtn && usernameInput && nameModal) {
+    changeNameBtn.addEventListener("click", () => {
+      usernameInput.value = currentUsername;
+      usernameFeedback.textContent = "";
+      nameModal.classList.remove("hidden-modal");
     });
   }
 
@@ -369,11 +331,12 @@ document.addEventListener("DOMContentLoaded", () => {
       if (e.target.classList.contains("delete-single-btn")) {
         const idToDelete = e.target.getAttribute("data-id");
         if (idToDelete && confirm("Purge message package node?")) {
-          await deleteDoc(doc(db, "messages", idToDelete)).catch(() => {});
+          await deleteDoc(doc(db, "messages", idToDelete));
         }
       }
       if (e.target.classList.contains("chat-img")) {
         const activeSrc = e.target.src;
+        // Collect all image references currently active on history canvas
         galleryImages = Array.from(document.querySelectorAll(".chat-img")).map(img => img.src);
         const findIdx = galleryImages.indexOf(activeSrc);
         if (zoomModal) {
@@ -387,7 +350,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // Mobile Friendly Touch Events Supporting Passive Interceptions
   if (swipeContainer) {
     swipeContainer.addEventListener("touchstart", (e) => {
-      if (currentScale > 1) return;
+      if (currentScale > 1) return; // Disable structural transitions if user is magnified
       isSwiping = true;
       swipeStartX = e.touches[0].clientX;
       swipeCurrentX = swipeStartX;
@@ -402,7 +365,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!isSwiping) return;
       isSwiping = false;
       const deltaX = swipeCurrentX - swipeStartX;
-      if (Math.abs(deltaX) > 50) {
+      if (Math.abs(deltaX) > 50) { // Threshold optimization for fast, highly fluid mobile interactions
         if (deltaX > 0) {
           if (currentGalleryIndex > 0) setupLightboxIndex(currentGalleryIndex - 1);
         } else {
@@ -465,6 +428,7 @@ document.addEventListener("DOMContentLoaded", () => {
       chatHistory.appendChild(msgElement);
     });
 
+    // Mobile safe scroll tracking updates
     setTimeout(() => {
       if (chatHistory) chatHistory.scrollTop = chatHistory.scrollHeight;
     }, 50);
@@ -480,6 +444,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!onlineUsersList) return;
     onlineUsersList.innerHTML = "";
     
+    // Seed persistent AI Bot node
     const aiRow = document.createElement("div");
     aiRow.className = "online-user-item";
     aiRow.innerHTML = `<div class="mini-avatar" style="background:#ff9f43">🤖</div> <span>AI Bot</span>`;
@@ -519,7 +484,7 @@ document.addEventListener("DOMContentLoaded", () => {
     try {
       updateAiPresence(true);
       aiContextMemory.push({ role: "user", content: userPrompt });
-      if (aiContextMemory.length > 12) aiContextMemory.shift();
+      if (aiContextMemory.length > 12) aiContextMemory.shift(); // Bound memory packet size
 
       const payloadMessages = [
         { role: "system", content: "You are a swift, hyper-optimized conversational engineer assistant built inside GhostChat channel. Keep structural formatting tight, markdown clean, and replies professional." },
@@ -553,9 +518,9 @@ document.addEventListener("DOMContentLoaded", () => {
   if (messageArea) {
     messageArea.addEventListener("input", (e) => {
       localStorage.setItem("chat_draft", e.target.value);
-      updatePresence(true, true).catch(() => {});
+      updatePresence(true, true);
       clearTimeout(typingTimeout);
-      typingTimeout = setTimeout(() => updatePresence(true, false).catch(() => {}), 2500);
+      typingTimeout = setTimeout(() => updatePresence(true, false), 2500);
     });
     messageArea.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); sendBtn.click(); } });
   }
@@ -572,7 +537,7 @@ document.addEventListener("DOMContentLoaded", () => {
         message: text,
         image: selectedImageBase64,
         time: Date.now()
-      }).catch(() => {});
+      });
 
       messageArea.value = "";
       localStorage.removeItem("chat_draft");
@@ -582,20 +547,12 @@ document.addEventListener("DOMContentLoaded", () => {
       if (imagePreviewContainer) imagePreviewContainer.classList.add("hidden");
       
       clearTimeout(typingTimeout);
-      updatePresence(true, false).catch(() => {});
+      updatePresence(true, false);
 
       if (text.toLowerCase().startsWith("@ai")) {
         const cleanedPrompt = text.replace(/^@ai\s*/i, "").trim();
         if (cleanedPrompt) fetchAiReply(cleanedPrompt);
       }
-    });
-  }
-
-  if (changeNameBtn && usernameInput && nameModal) {
-    changeNameBtn.addEventListener("click", () => {
-      usernameInput.value = currentUsername;
-      if (usernameFeedback) usernameFeedback.textContent = "";
-      nameModal.classList.remove("hidden-modal");
     });
   }
 
