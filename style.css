@@ -22,6 +22,52 @@
     
     --transition-smooth: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     --transition-bounce: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    
+    /* Native custom properties for live interactions */
+    --font-scale: 1rem;
+}
+
+/* ==========================================================================
+   01A. SYSTEM THEME OVERRIDES (CORE ENVIRONMENT ARRAY MATRIX)
+   ========================================================================== */
+body.theme-matrix {
+    --bg-main: #020402;
+    --bg-side: #050a05;
+    --bg-chat: #091009;
+    --border-glow: rgba(0, 255, 70, 0.08);
+    --accent: #10b981;
+    --accent-glow: rgba(16, 185, 129, 0.15);
+}
+
+body.theme-dracula {
+    --bg-main: #1e1f29;
+    --bg-side: #282a36;
+    --bg-chat: #343746;
+    --border-glow: rgba(248, 248, 242, 0.05);
+    --accent: #ff79c6;
+    --accent-glow: rgba(255, 121, 198, 0.15);
+}
+
+body.theme-nord {
+    --bg-main: #2e3440;
+    --bg-side: #3b4252;
+    --bg-chat: #434c5e;
+    --border-glow: rgba(255, 255, 255, 0.04);
+    --accent: #88c0d0;
+    --accent-glow: rgba(136, 192, 208, 0.15);
+}
+
+body.theme-light {
+    --bg-main: #f0f2f5;
+    --bg-side: #ffffff;
+    --bg-chat: #f8f9fa;
+    --text-white: #111111;
+    --text-muted: #5c626e;
+    --text-dim: #8c93a0;
+    --border-glow: rgba(0, 0, 0, 0.06);
+    --bubble-them: rgba(0, 0, 0, 0.04);
+    --accent: #0076ff;
+    --accent-glow: rgba(0, 118, 255, 0.15);
 }
 
 *, *::before, *::after {
@@ -46,13 +92,17 @@ html, body {
     display: flex;
     width: 100vw;
     height: 100vh;
-    height: -webkit-fill-available;
+    height: 100dvh; /* Modern adaptive view height */
     background: var(--bg-main);
     overflow: hidden;
     position: relative;
 }
 
-/* Custom High Performance Scrollbar */
+/* Custom High Performance Scrollbar with modern cross-browser fallbacks */
+.custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
 .custom-scrollbar::-webkit-scrollbar {
     width: 6px;
     height: 6px;
@@ -66,6 +116,19 @@ html, body {
 }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     background: rgba(255, 255, 255, 0.25);
+}
+
+/* Global utility class */
+.hidden {
+    display: none !important;
+}
+
+/* Accessible Interactive Focus Outlines */
+button:focus-visible, 
+input:focus-visible, 
+label.file-label:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
 }
 
 /* ==========================================================================
@@ -105,6 +168,11 @@ html, body {
     text-align: center;
     position: relative;
     box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+}
+
+/* Missing CSS class from standard HTML fade-in hook */
+.modal-content.animate-fade-in {
+    animation: premiumFadeIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .modal-brand {
@@ -171,7 +239,25 @@ html, body {
     background: rgba(255, 255, 255, 0.05);
 }
 
-/* Unique Username Live Feedback Validator */
+/* Beautiful custom focusing underscore design */
+.input-focus-line {
+    position: absolute;
+    bottom: 26px; /* Sits exactly under the input field outline */
+    left: 50%;
+    width: 0;
+    height: 2px;
+    background: var(--accent);
+    transform: translateX(-50%);
+    transition: var(--transition-smooth);
+    z-index: 2;
+    pointer-events: none;
+}
+
+.input-group input:focus ~ .input-focus-line {
+    width: calc(100% - 10px);
+}
+
+/* Unique Username Live Feedback Validator classes */
 .feedback-msg {
     font-size: 12px;
     font-weight: 500;
@@ -180,6 +266,8 @@ html, body {
     min-height: 18px;
     transition: var(--transition-smooth);
 }
+.feedback-msg.error { color: #ff4757; }
+.feedback-msg.success { color: #1dd1a1; }
 
 .color-picker-section {
     text-align: left;
@@ -248,7 +336,7 @@ html, body {
 }
 
 .sidebar-header {
-    padding: 20px;
+    padding: calc(20px + env(safe-area-inset-top)) 20px 20px; /* Safe areas notch compatibility */
     border-bottom: 1px solid var(--border-glow);
 }
 
@@ -299,11 +387,14 @@ html, body {
     font-weight: 500;
 }
 
+/* Glowing live status dots with animations */
 .status-dot.online-pulse {
     width: 8px;
     height: 8px;
     background: var(--accent);
     border-radius: 50%;
+    box-shadow: 0 0 8px var(--accent);
+    animation: microPulse 1.5s infinite ease-in-out;
 }
 
 .active-users-panel {
@@ -328,6 +419,10 @@ html, body {
     letter-spacing: 1px;
     color: var(--text-dim);
     font-weight: 700;
+    transition: var(--transition-smooth);
+}
+.panel-header:hover h4 {
+    color: var(--accent);
 }
 
 .live-badge {
@@ -449,6 +544,7 @@ html, body {
     display: flex;
     flex-direction: column;
     gap: 12px;
+    font-size: var(--font-scale); /* Live font adjustments */
 }
 
 .message-wrapper {
@@ -485,11 +581,19 @@ html, body {
 
 /* Phase 2 Administrative Clearance Tag Layouts (Ghost/Ace) */
 .admin-badge-label {
+    font-size: 9px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: var(--accent);
+    border: 1px solid rgba(0, 210, 211, 0.2);
     text-transform: uppercase;
     font-weight: 800;
     letter-spacing: 0.5px;
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(0, 210, 211, 0.05);
     box-shadow: 0 0 10px rgba(0, 210, 211, 0.1);
+    display: inline-flex;
+    align-items: center;
+    margin-left: 6px;
 }
 
 .bubble {
@@ -497,6 +601,7 @@ html, body {
     border-radius: var(--bubble-radius);
     line-height: 1.4;
     word-break: break-word;
+    font-size: calc(var(--font-scale) * 0.93); /* Proportional Font scaling */
 }
 
 .message-wrapper.me .bubble {
@@ -572,11 +677,11 @@ html, body {
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
     z-index: 4;
+    animation: typingBannerPulse 1.5s infinite alternate;
 }
-.typing-banner.hidden { display: none; }
 
 .input-area {
-    padding: 0 20px 20px;
+    padding: 0 20px calc(20px + env(safe-area-inset-bottom)); /* Notch area padding */
     background: transparent;
     display: flex;
     flex-direction: column;
@@ -591,7 +696,7 @@ html, body {
     border-radius: var(--panel-radius);
     align-self: flex-start;
 }
-#imagePreviewContainer.hidden { display: none; }
+
 .preview-wrapper { position: relative; display: inline-block; }
 #imagePreview { max-height: 80px; border-radius: 8px; display: block; }
 
@@ -644,6 +749,7 @@ html, body {
     outline: none;
     color: var(--text-white);
     padding: 6px 0;
+    font-size: var(--font-scale);
 }
 #message::placeholder { color: var(--text-dim); }
 
@@ -677,10 +783,18 @@ html, body {
     align-items: center;
     justify-content: center;
     z-index: 4;
+    cursor: pointer;
+    transition: var(--transition-bounce);
+}
+#scrollBottomBtn:hover {
+    background: var(--bg-chat);
+    border-color: var(--accent);
+    color: var(--accent);
+    transform: translateY(-2px);
 }
 
 /* ==========================================================================
-   06. IMERSIVE SWIPEABLE MULTI-IMAGE GALLERY LIGHTBOX
+   06. IMMERSIVE SWIPEABLE MULTI-IMAGE GALLERY LIGHTBOX
    ========================================================================== */
 .zoom-modal {
     position: fixed;
@@ -696,7 +810,6 @@ html, body {
     z-index: 100000;
     touch-action: none;
 }
-.zoom-modal.hidden { display: none !important; }
 
 .swipe-container {
     width: 100%;
@@ -806,10 +919,36 @@ html, body {
 .bubble-skeleton.outgoing { align-self: flex-end; border-bottom-right-radius: 4px; width: 45%; }
 .bubble-skeleton.incoming { align-self: flex-start; border-bottom-left-radius: 4px; }
 
-@keyframes pulseGlow { 0% { transform: scale(0.95); opacity: 0.2; } 100% { transform: scale(1.05); opacity: 0.35; } }
-@keyframes pulseRingAnimation { 0% { box-shadow: 0 0 0 0 rgba(29, 209, 161, 0.4); } 70% { box-shadow: 0 0 0 6px rgba(29, 209, 161, 0); } 100% { box-shadow: 0 0 0 0 rgba(29, 209, 161, 0); } }
-@keyframes messageEntry { 0% { opacity: 0; transform: translateY(10px); } 100% { opacity: 1; transform: translateY(0); } }
-@keyframes skeletonShimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+/* Custom Keyframes */
+@keyframes pulseGlow { 
+    0% { transform: scale(0.95); opacity: 0.2; } 
+    100% { transform: scale(1.05); opacity: 0.35; } 
+}
+@keyframes pulseRingAnimation { 
+    0% { box-shadow: 0 0 0 0 rgba(29, 209, 161, 0.4); } 
+    70% { box-shadow: 0 0 0 6px rgba(29, 209, 161, 0); } 
+    100% { box-shadow: 0 0 0 0 rgba(29, 209, 161, 0); } 
+}
+@keyframes messageEntry { 
+    0% { opacity: 0; transform: translateY(10px); } 
+    100% { opacity: 1; transform: translateY(0); } 
+}
+@keyframes skeletonShimmer { 
+    0% { background-position: 200% 0; } 
+    100% { background-position: -200% 0; } 
+}
+@keyframes microPulse {
+    0%, 100% { opacity: 0.8; transform: scale(0.95); }
+    50% { opacity: 1; transform: scale(1.1); box-shadow: 0 0 10px var(--accent); }
+}
+@keyframes typingBannerPulse {
+    0% { opacity: 0.8; }
+    100% { opacity: 1; box-shadow: 0 0 10px var(--accent-glow); }
+}
+@keyframes premiumFadeIn {
+    from { opacity: 0; transform: scale(0.96) translateY(12px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+}
 
 /* ==========================================================================
    08. HIGH-PERFORMANCE MOBILE COMPACT RESPONSIVENESS MATRIX
@@ -817,7 +956,7 @@ html, body {
 @media (max-width: 768px) {
     .app-layout { flex-direction: column; }
     .sidebar { width: 100%; height: auto; border-right: none; border-bottom: 1px solid var(--border-glow); }
-    .sidebar-header { padding: 10px 16px; }
+    .sidebar-header { padding: calc(10px + env(safe-area-inset-top)) 16px 10px; }
     .sidebar-info { padding: 8px 16px 12px; gap: 10px; flex: none; }
     .user-card { padding: 6px 12px; }
 
@@ -858,7 +997,7 @@ html, body {
     .bubble { padding: 8px 12px; }
     
     .typing-banner { bottom: 64px; left: 14px; font-size: 9px; }
-    .input-area { padding: 0 14px 14px; gap: 8px; }
+    .input-area { padding: 0 14px calc(14px + env(safe-area-inset-bottom)); gap: 8px; }
     .action-bar { padding: 4px 4px 4px 12px; gap: 8px; }
     .file-label { width: 28px; height: 28px; }
     .file-label svg { width: 16px; height: 16px; }
