@@ -24,20 +24,8 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
-
-// PHASE 1.5: Dynamic Room Architecture
-let currentRoom = "global";
+const messagesCollection = collection(db, "messages");
 const statusCollection = collection(db, "status");
-
-function getMessagesRef() {
-  return collection(db, "rooms", currentRoom, "messages");
-}
-function getTimerRef() {
-  return doc(db, "rooms", currentRoom, "timer_state");
-}
-
-let unsubMessages = null;
-let unsubTimer = null;
 
 let currentUsername = localStorage.getItem("chat_username") || "";
 let currentUserColor = localStorage.getItem("chat_user_color") || "#00d2d3";
@@ -48,10 +36,10 @@ let currentScale = 1;
 const themes = ["#1e2330", "#2c1a30", "#1a2e26", "#301a1a"];
 let currentThemeIndex = parseInt(localStorage.getItem("chat_theme_index")) || 0;
 
-// Dynamic Font Size Configuration
+// Dynamic Font Size Configuration (Mega Small & Mega Big Limits)
 let currentFontSize = parseInt(localStorage.getItem('chatFontSize')) || 22; 
-const minFontSize = 8;   
-const maxFontSize = 46;  
+const minFontSize = 8;   // Mega small (Microscopic mode)
+const maxFontSize = 46;  // Mega big (Absolute giant mode)
 
 let targetEndTimestamp = 0;
 let godIsActive = true;
@@ -61,6 +49,7 @@ let warningTwoMinSent = false;
 let globalTimerDisplayString = "";
 let globalTypingDisplayString = "";
 
+// Helper function to dynamically update the font size across the chat
 function applyChatFontSize(size) {
   let styleEl = document.getElementById('dynamic-font-style');
   if (!styleEl) {
@@ -79,6 +68,7 @@ function applyChatFontSize(size) {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  // Apply the saved or default font size immediately on load
   applyChatFontSize(currentFontSize);
 
   const nameModal = document.getElementById("nameModal");
@@ -91,12 +81,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const messageArea = document.getElementById("message");
   const chatHistory = document.getElementById("chatHistory");
   const sendBtn = document.getElementById("sendBtn");
-  
-  // Phase 1.5 UI Elements
-  const roomCodeInput = document.getElementById("roomCodeInput");
-  const joinRoomBtn = document.getElementById("joinRoomBtn");
-  const defaultGlobalBtn = document.getElementById("defaultGlobalBtn");
-  const currentRoomDisplay = document.getElementById("currentRoomDisplay");
   
   const imageInput = document.getElementById("imageInput");
   const cameraInput = document.getElementById("cameraInput");
@@ -113,13 +97,18 @@ document.addEventListener("DOMContentLoaded", () => {
   const themeBtn = document.getElementById("themeBtn");
   const clearChatBtn = document.getElementById("clearChatBtn");
   
+  // Font Size Buttons
   const incFontBtn = document.getElementById("incFontBtn");
   const decFontBtn = document.getElementById("decFontBtn");
 
   const onlineUsersList = document.getElementById("onlineUsersList");
   const typingIndicator = document.getElementById("typingIndicator");
 
-  if (zoomModal) zoomModal.classList.add("hidden");
+  // FIXED: Force the lightbox overlay to hidden on boot up. This drops any unhandled blocking on desktop views.
+  if (zoomModal) {
+    zoomModal.classList.add("hidden");
+  }
+
   if (chatContainer) chatContainer.style.backgroundColor = themes[currentThemeIndex];
   if (messageArea) messageArea.value = localStorage.getItem("chat_draft") || "";
 
@@ -149,7 +138,6 @@ document.addEventListener("DOMContentLoaded", () => {
       color: currentUserColor,
       isOnline: isOnline,
       isTyping: isTyping,
-      room: currentRoom, 
       lastSeen: Date.now()
     }, { merge: true }).catch(err => console.error("Presence update failed:", err));
   }
@@ -161,7 +149,6 @@ document.addEventListener("DOMContentLoaded", () => {
       color: "#ff9f43",
       isOnline: true,
       isTyping: isTyping,
-      room: currentRoom,
       lastSeen: Date.now()
     }, { merge: true }).catch(err => console.error("AI presence update failed:", err));
   }
@@ -177,137 +164,7 @@ document.addEventListener("DOMContentLoaded", () => {
       nameModal.classList.remove("hidden-modal");
     }
   }
-
-  // --- PHASE 1.5: Room Setup & Listeners ---
-  function initRoomListeners() {
-    if (unsubMessages) unsubMessages();
-    if (unsubTimer) unsubTimer();
-
-    if (chatHistory) chatHistory.innerHTML = "";
-    targetEndTimestamp = 0; 
-    godIsActive = true;
-    currentAnswer = null;
-    warningTwoMinSent = false;
-    
-    updatePresence(true, false);
-
-    // 1. Listen to Messages
-    const qMessages = query(getMessagesRef(), orderBy("time", "asc"));
-    unsubMessages = onSnapshot(qMessages, (snapshot) => {
-      if (!chatHistory) return;
-      chatHistory.innerHTML = "";
-
-      if (snapshot.empty) {
-        chatHistory.innerHTML = `<div class="system-msg">Room [${currentRoom}] is empty. Talk while you can...</div>`;
-        return;
-      }
-
-      let lastSender = "";
-      snapshot.forEach((snapshotDoc) => {
-        const data = snapshotDoc.data();
-        const msgId = snapshotDoc.id;
-        const msgElement = document.createElement("div");
-        
-        // CRITICAL BUG FIX: Guard against missing or malformed sender fields
-        const senderName = data.sender || "Anonymous";
-        const cleanCurrentUsername = currentUsername || "";
-        
-        const isMe = senderName.toLowerCase() === cleanCurrentUsername.toLowerCase();
-        const isConsecutive = lastSender ? senderName.toLowerCase() === lastSender.toLowerCase() : false;
-        lastSender = senderName;
-
-        msgElement.className = `message-wrapper ${isMe ? "me" : "them"} ${isConsecutive ? "consecutive" : ""}`;
-
-        const timeString = data.time 
-          ? new Date(data.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
-          : "";
-
-        const customUserColor = data.senderColor || "var(--accent)";
-        const firstInitial = senderName.charAt(0).toUpperCase();
-
-        let cleanedMessage = data.message || "";
-        if (cleanedMessage) {
-          cleanedMessage = cleanedMessage
-            .replace(/\$\$/g, "")
-            .replace(/\$/g, "")
-            .replace(/\\\[/g, "")
-            .replace(/\\\]/g, "")
-            .replace(/\\\(|\\\)/g, "")
-            .replace(/\\text\{([^}]+)\}/g, "$1")
-            .replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, "$1/$2"); 
-        }
-
-        let innerContent = "";
-        if (!isConsecutive) {
-          innerContent += `<div class="message-meta">
-            <div class="user-avatar-circle" style="background:${customUserColor}">${firstInitial}</div>
-            <span class="sender-name" style="color:${customUserColor}">${senderName}</span>
-          </div>`;
-        }
-        
-        innerContent += `<div class="bubble-layout">`;
-        if (data.image) {
-          innerContent += `<img src="${data.image}" class="chat-img" alt="shared photo">`;
-        }
-        if (cleanedMessage) {
-          innerContent += `<div class="bubble" style="${isMe ? `background:${customUserColor};color:#111;` : ''}">${cleanedMessage}</div>`;
-        }
-        
-        innerContent += `
-            <div class="bubble-sub">
-              <span class="timestamp">${timeString}</span>
-              <span class="delete-single-btn" data-id="${msgId}" title="Delete Message">🗑️</span>
-            </div>
-          </div>
-        `;
-
-        msgElement.innerHTML = innerContent;
-        chatHistory.appendChild(msgElement);
-      });
-
-      chatHistory.scrollTo({
-        top: chatHistory.scrollHeight,
-        behavior: "smooth"
-      });
-    });
-
-    // 2. Listen to Room-Specific Timer
-    unsubTimer = onSnapshot(getTimerRef(), async (docSnap) => {
-      if (docSnap.exists()) {
-        targetEndTimestamp = docSnap.data().endTime;
-      } else {
-        const freshEnd = Date.now() + 600000; 
-        await setDoc(getTimerRef(), { endTime: freshEnd }).catch(e => console.error(e));
-      }
-    });
-  }
-
-  // Room Switching Logic
-  if (joinRoomBtn && roomCodeInput) {
-    joinRoomBtn.addEventListener("click", () => {
-      const code = roomCodeInput.value.trim().toLowerCase();
-      if (code && code !== currentRoom) {
-        currentRoom = code;
-        if (currentRoomDisplay) currentRoomDisplay.textContent = `Active: ${currentRoom}`;
-        roomCodeInput.value = "";
-        initRoomListeners();
-      }
-    });
-  }
-
-  if (defaultGlobalBtn) {
-    defaultGlobalBtn.addEventListener("click", () => {
-      if (currentRoom !== "global") {
-        currentRoom = "global";
-        if (currentRoomDisplay) currentRoomDisplay.textContent = `Active: global`;
-        initRoomListeners();
-      }
-    });
-  }
-
-  // Initialize display and listeners on load
   updateIdentityDisplays();
-  initRoomListeners();
 
   window.addEventListener("beforeunload", () => {
     updatePresence(false, false);
@@ -405,7 +262,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   async function purgeChatRoomLogs() {
     try {
-      const querySnapshot = await getDocs(getMessagesRef());
+      const querySnapshot = await getDocs(messagesCollection);
       if (querySnapshot.empty) return;
       
       const batch = writeBatch(db);
@@ -419,7 +276,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   async function sendGodSms(textPayload) {
-    await addDoc(getMessagesRef(), {
+    await addDoc(messagesCollection, {
       sender: "GOD",
       senderColor: "#ff4757",
       message: textPayload,
@@ -450,6 +307,15 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  onSnapshot(doc(db, "status", "timer_state"), async (docSnap) => {
+    if (docSnap.exists()) {
+      targetEndTimestamp = docSnap.data().endTime;
+    } else {
+      const freshEnd = Date.now() + 600000; 
+      await setDoc(doc(db, "status", "timer_state"), { endTime: freshEnd }).catch(e => console.error(e));
+    }
+  });
+
   setInterval(async () => {
     if (!targetEndTimestamp) return;
 
@@ -459,7 +325,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const minutesLeft = Math.floor(remainingSeconds / 60);
     const secondsLeft = remainingSeconds % 60;
 
-    globalTimerDisplayString = `Purge in: ${minutesLeft}m ${secondsLeft}s [God: ${godIsActive ? "👁️ ACTIVE" : "🤐 MUTED"}]`;
+    globalTimerDisplayString = `Room Purge in: ${minutesLeft}m ${secondsLeft}s [God Mode: ${godIsActive ? "👁️ ACTIVE" : "🤐 MUTED"}]`;
     combineFooterDisplays();
 
     if (godIsActive && remainingSeconds === 120 && !warningTwoMinSent) {
@@ -480,7 +346,7 @@ document.addEventListener("DOMContentLoaded", () => {
       warningTwoMinSent = false;
       currentAnswer = null;
       
-      await setDoc(getTimerRef(), { endTime: nextEnd }).catch(e => console.error(e));
+      await setDoc(doc(db, "status", "timer_state"), { endTime: nextEnd }).catch(e => console.error(e));
     }
   }, 1000);
 
@@ -489,7 +355,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (e.target.classList.contains("delete-single-btn")) {
         const idToDelete = e.target.getAttribute("data-id");
         if (idToDelete && confirm("Delete this message?")) {
-          await deleteDoc(doc(db, "rooms", currentRoom, "messages", idToDelete)).catch(err => console.error(err));
+          await deleteDoc(doc(db, "messages", idToDelete)).catch(err => console.error(err));
         }
       }
       
@@ -504,13 +370,89 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  const qMessages = query(messagesCollection, orderBy("time", "asc"));
+  onSnapshot(qMessages, (snapshot) => {
+    if (!chatHistory) return;
+    
+    // Smoothly drop skeleton wrapper on original content snapshot loads
+    chatHistory.innerHTML = "";
+
+    if (snapshot.empty) {
+      chatHistory.innerHTML = `<div class="system-msg">Room empty and cleared. Talk while you can...</div>`;
+      return;
+    }
+
+    let lastSender = "";
+
+    snapshot.forEach((snapshotDoc) => {
+      const data = snapshotDoc.data();
+      const msgId = snapshotDoc.id;
+      const msgElement = document.createElement("div");
+      const isMe = data.sender.toLowerCase() === currentUsername.toLowerCase();
+      const isConsecutive = data.sender.toLowerCase() === lastSender.toLowerCase();
+      lastSender = data.sender;
+
+      msgElement.className = `message-wrapper ${isMe ? "me" : "them"} ${isConsecutive ? "consecutive" : ""}`;
+
+      const timeString = data.time 
+        ? new Date(data.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
+        : "";
+
+      const customUserColor = data.senderColor || "var(--accent)";
+      const firstInitial = data.sender ? data.sender.charAt(0).toUpperCase() : "?";
+
+      let cleanedMessage = data.message || "";
+      if (cleanedMessage) {
+        cleanedMessage = cleanedMessage
+          .replace(/\$\$/g, "")
+          .replace(/\$/g, "")
+          .replace(/\\\[/g, "")
+          .replace(/\\\]/g, "")
+          .replace(/\\\(|\\\)/g, "")
+          .replace(/\\text\{([^}]+)\}/g, "$1")
+          .replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, "$1/$2"); 
+      }
+
+      let innerContent = "";
+      if (!isConsecutive) {
+        innerContent += `<div class="message-meta">
+          <div class="user-avatar-circle" style="background:${customUserColor}">${firstInitial}</div>
+          <span class="sender-name" style="color:${customUserColor}">${data.sender}</span>
+        </div>`;
+      }
+      
+      innerContent += `<div class="bubble-layout">`;
+      if (data.image) {
+        innerContent += `<img src="${data.image}" class="chat-img" alt="shared photo">`;
+      }
+      if (cleanedMessage) {
+        innerContent += `<div class="bubble" style="${isMe ? `background:${customUserColor};color:#111;` : ''}">${cleanedMessage}</div>`;
+      }
+      
+      innerContent += `
+          <div class="bubble-sub">
+            <span class="timestamp">${timeString}</span>
+            <span class="delete-single-btn" data-id="${msgId}" title="Delete Message">🗑️</span>
+          </div>
+        </div>
+      `;
+
+      msgElement.innerHTML = innerContent;
+      chatHistory.appendChild(msgElement);
+    });
+
+    chatHistory.scrollTo({
+      top: chatHistory.scrollHeight,
+      behavior: "smooth"
+    });
+  });
+
   window.visualViewport?.addEventListener("resize", () => {
      setTimeout(() => {
        if (chatHistory) chatHistory.scrollTop = chatHistory.scrollHeight;
      }, 100);
   });
 
-  // Global Status Listener (Filtered for Current Room)
   onSnapshot(statusCollection, (snapshot) => {
     if (onlineUsersList) onlineUsersList.innerHTML = "";
     if (onlineUsersList) {
@@ -531,7 +473,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const data = docSnap.data();
       const isRecent = (Date.now() - data.lastSeen) < 120000;
 
-      if (data.username !== "AI Bot" && data.username !== "GOD" && data.isOnline && isRecent && data.room === currentRoom) {
+      if (data.username !== "AI Bot" && data.username !== "GOD" && data.isOnline && isRecent) {
         if (onlineUsersList) {
           const firstLetter = data.username ? data.username.charAt(0).toUpperCase() : "?";
           const userRow = document.createElement("div");
@@ -574,7 +516,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const replyText = await response.text();
       
-      await addDoc(getMessagesRef(), {
+      await addDoc(messagesCollection, {
         sender: "AI Bot",
         senderColor: "#ff9f43",
         message: replyText ? replyText.trim() : "My processing space timed out. Try asking me again!",
@@ -637,7 +579,7 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      await addDoc(getMessagesRef(), {
+      await addDoc(messagesCollection, {
         sender: currentUsername || "Anonymous",
         senderColor: currentUserColor,
         message: text,
@@ -661,7 +603,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (cleanedPrompt) {
           fetchAiReply(cleanedPrompt);
         } else {
-          await addDoc(getMessagesRef(), {
+          await addDoc(messagesCollection, {
             sender: "AI Bot",
             senderColor: "#ff9f43",
             message: "👋 I'm listening! Type `@ai` followed by your question.",
@@ -672,6 +614,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  // --- Theme & Font Settings Events ---
   if (themeBtn && chatContainer) {
     themeBtn.addEventListener("click", () => {
       currentThemeIndex = (currentThemeIndex + 1) % themes.length;
@@ -695,10 +638,11 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     });
   }
+  // ------------------------------------
 
   if (clearChatBtn) {
     clearChatBtn.addEventListener("click", async () => {
-      if (confirm(`Are you sure you want to clear the entire chat log for room [${currentRoom}]?`)) {
+      if (confirm("Are you sure you want to completely clear the entire chat log?")) {
         await purgeChatRoomLogs();
       }
     });
