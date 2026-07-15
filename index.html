@@ -16,7 +16,7 @@
             </div>
             
             <div class="sidebar-info">
-                <div class="user-card">
+                <div class="user-card" id="userSelfCard">
                     <span id="currentUserDisplay">Ace</span>
                     <span class="status-dot"></span>
                 </div>
@@ -28,7 +28,7 @@
                 </div>
 
                 <div class="sidebar-tip">
-                    Tip: Tap the menu button in the corner to toggle this panel on mobile screens.
+                    Tip: Tap the menu button (☰) in the top-left corner to hide/show active users on mobile.
                 </div>
             </div>
         </aside>
@@ -36,8 +36,8 @@
         <main class="chat-container">
             
             <header class="chat-header">
-                <div class="header-left-group" style="display: flex; align-items: center; gap: 10px;">
-                    <button id="menuToggleBtn" class="secondary-btn" style="padding: 6px 10px; font-size: 16px;">☰</button>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <button id="menuToggleBtn" class="secondary-btn">☰</button>
                     <h1>Global Chat</h1>
                 </div>
 
@@ -111,7 +111,7 @@
         <div class="modal-content">
             <h2>Welcome!</h2>
             <p>Set up your profile to start chatting</p>
-            <input type="text" id="usernameInput" placeholder="Enter nickname..." maxlength="15" required>
+            <input type="text" id="usernameInput" placeholder="Enter nickname..." maxlength="15" required value="Ace">
             
             <div class="color-picker-label">Choose Avatar Color:</div>
             <div class="avatar-color-picker">
