@@ -128,6 +128,14 @@
         <div id="typingIndicator" class="typing-banner hidden"></div>
 
         <footer class="input-area">
+            <div id="activeContextBanner" class="context-banner hidden">
+                <div class="context-details">
+                    <span id="contextTypeLabel">Replying to:</span>
+                    <span id="contextTextPreview">...</span>
+                </div>
+                <button id="cancelContextBtn" title="Dismiss Context Layer">✕</button>
+            </div>
+
             <div id="imagePreviewContainer" class="hidden">
                 <div class="preview-wrapper">
                     <img id="imagePreview" src="" alt="Staged Asset Attachment Matrix">
