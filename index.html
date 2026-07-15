@@ -41,9 +41,7 @@
 </div>
 
 <div class="app-layout">
-    <div class="sidebar-overlay" id="sidebarOverlay"></div>
-
-    <aside class="sidebar" id="sidebarNode">
+    <aside class="sidebar">
         <div class="sidebar-header">
             <div class="logo-wrapper">
                 <div class="pulse-ring"></div>
@@ -79,13 +77,6 @@
         <header class="chat-header">
             <div class="header-details">
                 <div class="title-row">
-                    <button id="sidebarToggleBtn" class="sidebar-toggle" title="Toggle System Active Terminals Panel">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-                            <line x1="3" y1="12" x2="21" y2="12"></line>
-                            <line x1="3" y1="6" x2="21" y2="6"></line>
-                            <line x1="3" y1="18" x2="21" y2="18"></line>
-                        </svg>
-                    </button>
                     <svg class="header-status-icon" viewBox="0 0 24 24" fill="currentColor">
                         <circle cx="12" cy="12" r="8"/>
                     </svg>
@@ -94,15 +85,7 @@
                 <p id="mobileUserDisplay">Active Session Node</p>
             </div>
             
-            <div class="search-bar-container hidden" id="searchBarContainer">
-                <input type="text" id="chatSearchInput" placeholder="Filter log buffers..." autocomplete="off">
-                <span id="closeSearchBtn">✕</span>
-            </div>
-            
             <div class="header-actions">
-                <button id="searchToggleBtn" class="secondary-btn icon-btn" title="Search Local Channel Logs">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                </button>
                 <button id="decFontBtn" class="secondary-btn icon-btn" title="Decrease Structural Font Scaling">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14"/></svg>
                 </button>
@@ -135,14 +118,6 @@
             </div>
         </header>
 
-        <div id="pinnedMessagesContainer" class="pinned-messages-container hidden">
-            <div class="pinned-header">
-                <span class="pinned-title">📌 Pinned Transmission Nodes</span>
-                <span id="closePinnedPanelBtn" class="close-pinned-panel">✕</span>
-            </div>
-            <div id="pinnedMessagesList" class="custom-scrollbar"></div>
-        </div>
-
         <div id="chatHistory" class="custom-scrollbar">
             <div class="skeleton-wrapper">
                 <div class="bubble-skeleton incoming"></div>
@@ -153,17 +128,6 @@
         <div id="typingIndicator" class="typing-banner hidden"></div>
 
         <footer class="input-area">
-            <div id="replyContextContainer" class="reply-context-container hidden">
-                <div class="reply-context-inner">
-                    <div class="reply-bar"></div>
-                    <div class="reply-body">
-                        <span id="replyUserLabel"></span>
-                        <p id="replyTextLabel"></p>
-                    </div>
-                    <span id="cancelReplyBtn" class="cancel-reply">✕</span>
-                </div>
-            </div>
-
             <div id="imagePreviewContainer" class="hidden">
                 <div class="preview-wrapper">
                     <img id="imagePreview" src="" alt="Staged Asset Attachment Matrix">
@@ -204,7 +168,8 @@
 <div id="zoomModal" class="zoom-modal hidden">
     <span id="closeZoom" class="close-zoom" title="Dismiss Immersive Overlay Layer">✕</span>
     
-    <div class="swipe-container" id="swipeContainer"></div>
+    <div class="swipe-container" id="swipeContainer">
+        </div>
 
     <div class="viewer-navigation-info">
         <span id="viewerIndexDisplay">0 / 0</span>
