@@ -13,7 +13,7 @@ import {
   writeBatch
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-// Firebase App Configuration Matrix
+// Firebase Configuration Link
 const firebaseConfig = {
   apiKey: "AIzaSyAw5Bjo8hHrrwGy-bLYw-bVj6VxMxQikkY",
   authDomain: "texting-996fa.firebaseapp.com",
@@ -28,689 +28,597 @@ const db = getFirestore(app);
 const messagesCollection = collection(db, "messages");
 const statusCollection = collection(db, "status");
 
-// Operational Context States
+// App Operational Context State Panels
 let currentUsername = localStorage.getItem("chat_username") || "";
 let currentUserColor = localStorage.getItem("chat_user_color") || "#00d2d3";
 let selectedImageBase64 = "";
 let typingTimeout = null;
-let currentScale = 1;
-
-const themes = ["#1e2330", "#2c1a30", "#1a2e26", "#301a1a"];
-let currentThemeIndex = parseInt(localStorage.getItem("chat_theme_index")) || 0;
-
-// Dynamic Workspace Scaling Parameters
-let currentFontSize = parseInt(localStorage.getItem('chatFontSize')) || 22; 
-const minFontSize = 8;
-const maxFontSize = 46;
-
-// Automated Room Purge Engine Status Metrics
-let targetEndTimestamp = 0;
-let godIsActive = true;
-let currentAnswer = null;
-let warningTwoMinSent = false;
-
-let globalTimerDisplayString = "";
+let currentFontSize = parseInt(localStorage.getItem("chat_font_size") || "15", 10);
 let globalTypingDisplayString = "";
 
-/**
- * Dynamically binds variable style layers for real-time fluid resizing overrides
- */
-function applyChatFontSize(size) {
-  let styleEl = document.getElementById('dynamic-font-style');
-  if (!styleEl) {
-    styleEl = document.createElement('style');
-    styleEl.id = 'dynamic-font-style';
-    document.head.appendChild(styleEl);
+// Chatbot Context History Arrays
+let aiConversationHistory = [
+  { role: "system", content: "You are a ultra-responsive conversational AI module integrated inside a developer cyberpunk grid hub." }
+];
+
+// Document Object UI Selectors
+const nameModal = document.getElementById("nameModal");
+const usernameInput = document.getElementById("usernameInput");
+const saveProfileBtn = document.getElementById("saveProfileBtn");
+const colorDots = document.querySelectorAll(".color-dot");
+const chatHistory = document.getElementById("chatHistory");
+const messageInput = document.getElementById("messageInput");
+const sendBtn = document.getElementById("sendBtn");
+const userList = document.getElementById("userList");
+const typingIndicator = document.getElementById("typingIndicator");
+const imageUploadInput = document.getElementById("imageUploadInput");
+const imagePreviewContainer = document.getElementById("imagePreviewContainer");
+const imagePreview = document.getElementById("imagePreview");
+const cancelImageBtn = document.getElementById("cancelImageBtn");
+const themeToggleBtn = document.getElementById("themeToggleBtn");
+const clearChatBtn = document.getElementById("clearChatBtn");
+const incFontBtn = document.getElementById("incFontBtn");
+const decFontBtn = document.getElementById("decFontBtn");
+
+// Image Inspector Modal Hooks
+const zoomModal = document.getElementById("zoomModal");
+const zoomedImage = document.getElementById("zoomedImage");
+const closeZoom = document.getElementById("closeZoom");
+
+// Swipe Geometry State Management Vectors
+let touchStartX = 0;
+let touchEndX = 0;
+
+// Dynamic Application Styling Sheets Initialization
+const dynamicStyleNode = document.createElement("style");
+dynamicStyleNode.id = "dynamic-font-overrides";
+document.head.appendChild(dynamicStyleNode);
+
+function applyGlobalFontSize(size) {
+  currentFontSize = Math.max(8, Math.min(size, 46));
+  localStorage.setItem("chat_font_size", currentFontSize);
+  dynamicStyleNode.innerHTML = `.bubble-content, #messageInput { font-size: ${currentFontSize}px !important; }`;
+}
+applyGlobalFontSize(currentFontSize);
+
+// Backdrops Theme Array Cycles
+const cryptThemes = [
+  "#1e2330", "#0f111a", "#1a1c23", "#12131a", "#1c1e24", "#0d0e15"
+];
+let coreThemeIndex = 0;
+
+// App Execution Entry Points
+window.addEventListener("DOMContentLoaded", () => {
+  setupProfileModalSystem();
+  initializeDatabaseListeners();
+  bindUserEventHandlers();
+  updateIdentityDisplays();
+});
+
+// User Identity & Colors Configuration System
+function setupProfileModalSystem() {
+  if (!currentUsername) {
+    nameModal.classList.remove("hidden");
+    nameModal.style.display = "flex";
+  } else {
+    nameModal.classList.add("hidden");
+    nameModal.style.display = "none";
+    updatePresence(true);
   }
-  
-  styleEl.innerHTML = `
-    .bubble, #message { 
-        font-size: ${size}px !important; 
-    }
-  `;
-  
-  localStorage.setItem('chatFontSize', size);
+
+  colorDots.forEach(dot => {
+    dot.addEventListener("click", () => {
+      colorDots.forEach(d => d.classList.remove("active"));
+      dot.classList.add("active");
+      currentUserColor = dot.getAttribute("data-color") || "#00d2d3";
+    });
+  });
+
+  saveProfileBtn.addEventListener("click", handleUserSetupSave);
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-  // Apply saved layout scaling factors instantly
-  applyChatFontSize(currentFontSize);
+async function handleUserSetupSave() {
+  const newName = usernameInput.value.trim();
+  if (!newName) {
+    alert("Specify an interface account signature identifier.");
+    return;
+  }
 
-  // Element Cache Matrix
-  const nameModal = document.getElementById("nameModal");
-  const usernameInput = document.getElementById("usernameInput");
-  const saveNameBtn = document.getElementById("saveNameBtn");
-  const changeNameBtn = document.getElementById("changeNameBtn");
-  const currentUserDisplay = document.getElementById("currentUserDisplay");
-  const mobileUserDisplay = document.getElementById("mobileUserDisplay");
-  const chatContainer = document.getElementById("chatContainer");
-  const messageArea = document.getElementById("message");
-  const chatHistory = document.getElementById("chatHistory");
-  const sendBtn = document.getElementById("sendBtn");
+  const identityToken = newName.toLowerCase().replace(/\s+/g, '_');
+  const systemReservedNames = ["system", "ai bot", "god", "admin", "null", "ghostchat", "broadcast"];
   
-  const imageInput = document.getElementById("imageInput");
-  const cameraInput = document.getElementById("cameraInput");
-  const imagePreviewContainer = document.getElementById("imagePreviewContainer");
-  const imagePreview = document.getElementById("imagePreview");
-  const cancelImage = document.getElementById("cancelImage");
-  
-  const zoomModal = document.getElementById("zoomModal");
-  const zoomedImage = document.getElementById("zoomedImage");
-  const closeZoom = document.getElementById("closeZoom");
-  const zoomInBtn = document.getElementById("zoomInBtn");
-  const zoomOutBtn = document.getElementById("zoomOutBtn");
-
-  const themeBtn = document.getElementById("themeBtn");
-  const clearChatBtn = document.getElementById("clearChatBtn");
-  
-  const incFontBtn = document.getElementById("incFontBtn");
-  const decFontBtn = document.getElementById("decFontBtn");
-
-  const onlineUsersList = document.getElementById("onlineUsersList");
-  const typingIndicator = document.getElementById("typingIndicator");
-
-  // Reset overlay view visibility
-  if (zoomModal) zoomModal.classList.add("hidden");
-  if (chatContainer) chatContainer.style.backgroundColor = themes[currentThemeIndex];
-  if (messageArea) messageArea.value = localStorage.getItem("chat_draft") || "";
-
-  // ==========================================
-  // NEW ACTIVE TERMINALS MINIMIZE CONTROLLER
-  // ==========================================
-  const activeUsersPanel = document.querySelector(".active-users-panel");
-  const panelHeader = document.querySelector(".panel-header");
-
-  if (panelHeader && activeUsersPanel) {
-    // Dynamically inject the toggle drop-arrow into layout if not preset in markup
-    if (!document.querySelector(".panel-toggle-btn")) {
-      const rightMetaContainer = document.createElement("div");
-      rightMetaContainer.className = "panel-header-right";
-      
-      const liveBadge = document.querySelector(".live-badge");
-      if (liveBadge) rightMetaContainer.appendChild(liveBadge);
-
-      const toggleBtn = document.createElement("button");
-      toggleBtn.type = "button";
-      toggleBtn.className = "panel-toggle-btn";
-      toggleBtn.title = "Toggle Panel Viewport";
-      toggleBtn.innerHTML = `
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
-        </svg>
-      `;
-      rightMetaContainer.appendChild(toggleBtn);
-      panelHeader.appendChild(rightMetaContainer);
-    }
-
-    // Toggle minimize states gracefully using high performance CSS max-height modifications
-    panelHeader.addEventListener("click", () => {
-      activeUsersPanel.classList.toggle("minimized");
-    });
+  if (systemReservedNames.includes(newName.toLowerCase())) {
+    alert("This designation handles is reserved by server root network nodes.");
+    return;
   }
 
-  // Identity Palette Initializer Loops
-  document.querySelectorAll(".color-dot").forEach(dot => {
-    if (dot.getAttribute("data-color") === currentUserColor) {
-      document.querySelectorAll(".color-dot").forEach(d => d.classList.remove("selected"));
-      dot.classList.add("selected");
-    }
-    dot.addEventListener("click", (e) => {
-      document.querySelectorAll(".color-dot").forEach(d => d.classList.remove("selected"));
-      e.target.classList.add("selected");
-      currentUserColor = e.target.getAttribute("data-color");
-    });
-  });
+  try {
+    saveProfileBtn.disabled = true;
+    saveProfileBtn.textContent = "Validating Handle uniqueness...";
 
-  // Network Cluster Presence Dispatches
-  async function updatePresence(isOnline, isTyping = false, oldName = "") {
-    if (!currentUsername) return;
+    // Query active operators on the network to enforce unique usernames
+    const currentUsersSnap = await getDocs(query(statusCollection));
+    let isHandleInUse = false;
 
-    if (oldName && oldName.toLowerCase() !== currentUsername.toLowerCase()) {
-      const oldDocRef = doc(statusCollection, oldName.toLowerCase().replace(/\s+/g, '_'));
-      await deleteDoc(oldDocRef).catch(err => console.error("Old record purge failed:", err));
-    }
-
-    const userDocRef = doc(statusCollection, currentUsername.toLowerCase().replace(/\s+/g, '_'));
-    await setDoc(userDocRef, {
-      username: currentUsername,
-      color: currentUserColor,
-      isOnline: isOnline,
-      isTyping: isTyping,
-      lastSeen: Date.now()
-    }, { merge: true }).catch(err => console.error("Presence sync failed:", err));
-  }
-
-  async function updateAiPresence(isTyping) {
-    const aiDocRef = doc(statusCollection, "ai_bot");
-    await setDoc(aiDocRef, {
-      username: "AI Bot",
-      color: "#ff9f43",
-      isOnline: true,
-      isTyping: isTyping,
-      lastSeen: Date.now()
-    }, { merge: true }).catch(err => console.error("AI node sync failed:", err));
-  }
-
-  function updateIdentityDisplays() {
-    if (!nameModal) return;
-    if (currentUsername) {
-      if (currentUserDisplay) currentUserDisplay.textContent = `User: ${currentUsername}`;
-      if (mobileUserDisplay) mobileUserDisplay.textContent = `Profile: ${currentUsername}`;
-      nameModal.classList.add("hidden-modal");
-      updatePresence(true, false);
-    } else {
-      nameModal.classList.remove("hidden-modal");
-    }
-  }
-  updateIdentityDisplays();
-
-  window.addEventListener("beforeunload", () => {
-    updatePresence(false, false);
-  });
-
-  function handleUserSetupSave() {
-    if (!usernameInput) return;
-    const newName = usernameInput.value.trim();
-    if (newName) {
-      const oldName = currentUsername;
-      localStorage.setItem("chat_username", newName);
-      localStorage.setItem("chat_user_color", currentUserColor);
-      currentUsername = newName;
-      updateIdentityDisplays();
-      if (oldName && oldName !== newName) {
-        updatePresence(true, false, oldName);
-      }
-    }
-  }
-
-  if (saveNameBtn) {
-    saveNameBtn.addEventListener("click", handleUserSetupSave);
-    saveNameBtn.addEventListener("touchend", (e) => {
-      e.preventDefault();
-      handleUserSetupSave();
-    });
-  }
-
-  if (changeNameBtn && usernameInput && nameModal) {
-    const openModal = () => {
-      usernameInput.value = currentUsername;
-      nameModal.classList.remove("hidden-modal");
-    };
-    changeNameBtn.addEventListener("click", openModal);
-    changeNameBtn.addEventListener("touchend", (e) => {
-      e.preventDefault();
-      openModal();
-    });
-  }
-
-  // Local Media Downscaling & Canvas Optimization
-  function compressImage(file) {
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = (event) => {
-        const img = new Image();
-        img.src = event.target.result;
-        img.onload = () => {
-          const canvas = document.createElement("canvas");
-          let width = img.width;
-          let height = img.height;
-          const MAX_SIZE = 600;
-          if (width > height && width > MAX_SIZE) { height *= MAX_SIZE / width; width = MAX_SIZE; }
-          else if (height > MAX_SIZE) { width *= MAX_SIZE / height; height = MAX_SIZE; }
-          canvas.width = width; canvas.height = height;
-          const ctx = canvas.getContext("2d");
-          ctx.drawImage(img, 0, 0, width, height);
-          resolve(canvas.toDataURL("image/jpeg", 0.6));
-        };
-      };
-    });
-  }
-
-  async function processSelectedFile(file) {
-    if (file && imagePreview && imagePreviewContainer) {
-      selectedImageBase64 = await compressImage(file);
-      imagePreview.src = selectedImageBase64;
-      imagePreviewContainer.classList.remove("hidden");
-    }
-  }
-
-  if (imageInput) {
-    imageInput.addEventListener("change", async (e) => {
-      if (e.target.files.length > 0) await processSelectedFile(e.target.files[0]);
-    });
-  }
-
-  if (cameraInput) {
-    cameraInput.addEventListener("change", async (e) => {
-      if (e.target.files.length > 0) await processSelectedFile(e.target.files[0]);
-    });
-  }
-
-  if (cancelImage) {
-    cancelImage.addEventListener("click", () => {
-      selectedImageBase64 = "";
-      if (imageInput) imageInput.value = "";
-      if (cameraInput) cameraInput.value = "";
-      if (imagePreviewContainer) imagePreviewContainer.classList.add("hidden");
-    });
-  }
-
-  // Administrative Purge Pipelines
-  async function purgeChatRoomLogs() {
-    try {
-      const querySnapshot = await getDocs(messagesCollection);
-      if (querySnapshot.empty) return;
-      
-      const batch = writeBatch(db);
-      querySnapshot.docs.forEach((docSnapshot) => {
-        batch.delete(docSnapshot.ref);
-      });
-      await batch.commit();
-    } catch (err) {
-      console.error("Batch clear operation encountered an anomaly:", err);
-    }
-  }
-
-  async function sendGodSms(textPayload) {
-    await addDoc(messagesCollection, {
-      sender: "GOD",
-      senderColor: "#ff4757",
-      message: textPayload,
-      time: Date.now()
-    }).catch(err => console.error("God command dispatch anomaly:", err));
-  }
-
-  function makeHardQuestion() {
-    const num1 = Math.floor(Math.random() * 80) + 20;
-    const num2 = Math.floor(Math.random() * 12) + 4;
-    const num3 = Math.floor(Math.random() * 150) + 50;
-    currentAnswer = (num1 * num2) - num3;
-    return `Solve to silence me: (${num1} × ${num2}) - ${num3} = ?`;
-  }
-
-  function combineFooterDisplays() {
-    if (!typingIndicator) return;
-    let parts = [];
-    if (globalTimerDisplayString) parts.push(globalTimerDisplayString);
-    if (globalTypingDisplayString) parts.push(globalTypingDisplayString);
-    
-    if (parts.length > 0) {
-      typingIndicator.innerHTML = parts.join(" | ");
-      typingIndicator.classList.remove("hidden");
-    } else {
-      typingIndicator.classList.add("hidden");
-    }
-  }
-
-  // Global Sync Timer Loop
-  onSnapshot(doc(db, "status", "timer_state"), async (docSnap) => {
-    if (docSnap.exists()) {
-      targetEndTimestamp = docSnap.data().endTime;
-    } else {
-      const freshEnd = Date.now() + 600000; 
-      await setDoc(doc(db, "status", "timer_state"), { endTime: freshEnd }).catch(e => console.error(e));
-    }
-  });
-
-  setInterval(async () => {
-    if (!targetEndTimestamp) return;
-
-    const now = Date.now();
-    let remainingSeconds = Math.max(0, Math.floor((targetEndTimestamp - now) / 1000));
-    const minutesLeft = Math.floor(remainingSeconds / 60);
-    const secondsLeft = remainingSeconds % 60;
-
-    globalTimerDisplayString = `Purge in: ${minutesLeft}m ${secondsLeft}s [God Mode: ${godIsActive ? "👁️ ACTIVE" : "🤐 MUTED"}]`;
-    combineFooterDisplays();
-
-    if (godIsActive && remainingSeconds === 120 && !warningTwoMinSent) {
-      warningTwoMinSent = true;
-      sendGodSms("⚠️ TWO MINUTES REMAINING. Chat canvas history erasure approaching.");
-    }
-
-    if (godIsActive && remainingSeconds <= 5 && remainingSeconds > 0) {
-      sendGodSms(`🚨 ${remainingSeconds} SECONDS REMAINING! Purification cycle initializing.`);
-    }
-
-    if (remainingSeconds <= 0) {
-      targetEndTimestamp = 0; 
-      await purgeChatRoomLogs();
-      const nextEnd = Date.now() + 600000;
-      godIsActive = true; 
-      warningTwoMinSent = false;
-      currentAnswer = null;
-      await setDoc(doc(db, "status", "timer_state"), { endTime: nextEnd }).catch(e => console.error(e));
-    }
-  }, 1000);
-
-  // Interaction Canvas Triggers
-  if (chatHistory) {
-    chatHistory.addEventListener("click", async (e) => {
-      if (e.target.classList.contains("delete-single-btn")) {
-        const idToDelete = e.target.getAttribute("data-id");
-        if (idToDelete && confirm("Purge specific message node?")) {
-          await deleteDoc(doc(db, "messages", idToDelete)).catch(err => console.error(err));
-        }
-      }
-      
-      if (e.target.classList.contains("chat-img")) {
-        if (zoomedImage && zoomModal) {
-          zoomedImage.src = e.target.src;
-          currentScale = 1;
-          zoomedImage.style.transform = `scale(${currentScale})`;
-          zoomModal.classList.remove("hidden");
-        }
+    currentUsersSnap.forEach((docRecord) => {
+      const liveData = docRecord.data();
+      if (docRecord.id === identityToken && liveData.isOnline === true) {
+        isHandleInUse = true;
       }
     });
-  }
 
-  // Active Real-time Messaging Pipelines
-  const qMessages = query(messagesCollection, orderBy("time", "asc"));
-  onSnapshot(qMessages, (snapshot) => {
-    if (!chatHistory) return;
-    chatHistory.innerHTML = "";
-
-    if (snapshot.empty) {
-      chatHistory.innerHTML = `<div class="system-msg">Buffers empty. Broadcast system fully functional.</div>`;
+    if (isHandleInUse) {
+      alert("Identity handle is assigned to an online terminal connection. Pick another signature.");
+      saveProfileBtn.disabled = false;
+      saveProfileBtn.textContent = "Connect Interface";
       return;
     }
 
-    let lastSender = "";
-    snapshot.forEach((snapshotDoc) => {
-      const data = snapshotDoc.data();
-      const msgId = snapshotDoc.id;
-      const msgElement = document.createElement("div");
-      const isMe = data.sender.toLowerCase() === currentUsername.toLowerCase();
-      const isConsecutive = data.sender.toLowerCase() === lastSender.toLowerCase();
-      lastSender = data.sender;
+    currentUsername = newName;
+    localStorage.setItem("chat_username", currentUsername);
+    localStorage.setItem("chat_user_color", currentUserColor);
 
-      msgElement.className = `message-wrapper ${isMe ? "me" : "them"} ${isConsecutive ? "consecutive" : ""}`;
+    nameModal.classList.add("hidden");
+    nameModal.style.display = "none";
 
-      const timeString = data.time 
-        ? new Date(data.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
-        : "";
-
-      const customUserColor = data.senderColor || "var(--accent)";
-      const firstInitial = data.sender ? data.sender.charAt(0).toUpperCase() : "?";
-
-      let cleanedMessage = data.message || "";
-      if (cleanedMessage) {
-        cleanedMessage = cleanedMessage
-          .replace(/\$\$/g, "")
-          .replace(/\$/g, "")
-          .replace(/\\\[/g, "")
-          .replace(/\\\]/g, "")
-          .replace(/\\\(|\\\)/g, "")
-          .replace(/\\text\{([^}]+)\}/g, "$1")
-          .replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, "$1/$2"); 
-      }
-
-      let innerContent = "";
-      if (!isConsecutive) {
-        innerContent += `<div class="message-meta">
-          <div class="user-avatar-circle" style="background:${customUserColor}">${firstInitial}</div>
-          <span class="sender-name" style="color:${customUserColor}">${data.sender}</span>
-        </div>`;
-      }
-      
-      innerContent += `<div class="bubble-layout">`;
-      if (data.image) {
-        innerContent += `<img src="${data.image}" class="chat-img" alt="Attached Asset">`;
-      }
-      if (cleanedMessage) {
-        innerContent += `<div class="bubble" style="${isMe ? `background:${customUserColor};color:#111;` : ''}">${cleanedMessage}</div>`;
-      }
-      
-      innerContent += `
-          <div class="bubble-sub">
-            <span class="timestamp">${timeString}</span>
-            <span class="delete-single-btn" data-id="${msgId}" title="Delete Message Target">🗑️</span>
-          </div>
-        </div>
-      `;
-
-      msgElement.innerHTML = innerContent;
-      chatHistory.appendChild(msgElement);
-    });
-
-    chatHistory.scrollTo({ top: chatHistory.scrollHeight, behavior: "smooth" });
-  });
-
-  // Keep bottom scrolling intact on mobile dynamic dynamic viewport overlays
-  window.visualViewport?.addEventListener("resize", () => {
-     setTimeout(() => {
-       if (chatHistory) chatHistory.scrollTop = chatHistory.scrollHeight;
-     }, 100);
-  });
-
-  // Node User List Synchronizer Loops
-  onSnapshot(statusCollection, (snapshot) => {
-    if (onlineUsersList) onlineUsersList.innerHTML = "";
-    if (onlineUsersList) {
-      const aiRow = document.createElement("div");
-      aiRow.className = "online-user-item";
-      aiRow.innerHTML = `<div class="mini-avatar" style="background:#ff9f43">🤖</div> <span>AI Bot</span>`;
-      onlineUsersList.appendChild(aiRow);
-
-      const godRow = document.createElement("div");
-      godRow.className = "online-user-item";
-      godRow.innerHTML = `<div class="mini-avatar" style="background:#ff4757">👁️</div> <span>GOD [${godIsActive ? "Online" : "Muted"}]</span>`;
-      onlineUsersList.appendChild(godRow);
-    }
-
-    let typingUsers = [];
-    snapshot.forEach(docSnap => {
-      const data = docSnap.data();
-      const isRecent = (Date.now() - data.lastSeen) < 120000;
-
-      if (data.username !== "AI Bot" && data.username !== "GOD" && data.isOnline && isRecent) {
-        if (onlineUsersList) {
-          const firstLetter = data.username ? data.username.charAt(0).toUpperCase() : "?";
-          const userRow = document.createElement("div");
-          userRow.className = "online-user-item";
-          userRow.innerHTML = `
-            <div class="mini-avatar" style="background:${data.color || 'var(--accent)'}">${firstLetter}</div>
-            <span>${data.username}</span>
-          `;
-          onlineUsersList.appendChild(userRow);
-        }
-
-        if (data.isTyping && data.username !== currentUsername) {
-          typingUsers.push(data.username);
-        }
-      }
-    });
-
-    if (typingUsers.length > 0) {
-      globalTypingDisplayString = `✍️ ${typingUsers.join(", ")} ${typingUsers.length === 1 ? "is" : "are"} typing...`;
-    } else {
-      globalTypingDisplayString = "";
-    }
-    combineFooterDisplays();
-  });
-
-  // Assistant Pipeline Routing
-  async function fetchAiReply(userPrompt) {
-    try {
-      updateAiPresence(true);
-      const response = await fetch("https://text.pollinations.ai/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages: [
-            { role: "system", content: "You are a helpful, conversational, super fast AI assistant inside a developer chat room." },
-            { role: "user", content: userPrompt }
-          ]
-        })
-      });
-      const replyText = await response.text();
-      await addDoc(messagesCollection, {
-        sender: "AI Bot",
-        senderColor: "#ff9f43",
-        message: replyText ? replyText.trim() : "Core inference engine timed out. Resubmit request.",
-        time: Date.now()
-      });
-    } catch (err) {
-      console.error("AI Node interaction failure:", err);
-    } finally {
-      updateAiPresence(false);
-    }
+    updateIdentityDisplays();
+    await updatePresence(true);
+  } catch (error) {
+    console.error("Presence check system pipeline block:", error);
+    alert("Network sync fault. Retry profile handshake verification.");
+  } finally {
+    saveProfileBtn.disabled = false;
   }
+}
 
-  if (messageArea) {
-    messageArea.addEventListener("input", (e) => {
-      localStorage.setItem("chat_draft", e.target.value);
-      updatePresence(true, true);
-      clearTimeout(typingTimeout);
-      typingTimeout = setTimeout(() => {
-        updatePresence(true, false);
-      }, 2500);
-    });
-    
-    messageArea.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
-        e.preventDefault(); 
-        sendBtn.click();
-      }
-    });
+function updateIdentityDisplays() {
+  const customAccentColor = currentUserColor || "#00d2d3";
+  document.documentElement.style.setProperty('--accent', customAccentColor);
+  document.documentElement.style.setProperty('--bubble-me', customAccentColor);
+}
+
+// Presence Network Signaling Loops
+async function updatePresence(isOnline, isTyping = false, explicitName = "") {
+  const nameToRegister = explicitName || currentUsername;
+  if (!nameToRegister) return;
+  const userNodeId = nameToRegister.toLowerCase().replace(/\s+/g, '_');
+  try {
+    await setDoc(doc(statusCollection, userNodeId), {
+      username: nameToRegister,
+      color: currentUserColor || "#00d2d3",
+      isOnline: isOnline,
+      isTyping: isTyping,
+      lastSeen: Date.now()
+    }, { merge: true });
+  } catch (err) {
+    console.error("Presence transmission tracking dropped:", err);
   }
+}
 
-  if (sendBtn) {
-    sendBtn.addEventListener("click", async () => {
-      if (!messageArea) return;
-      const text = messageArea.value.trim();
-      if (!text && !selectedImageBase64) return;
+// Global Remote Collection Synced Listeners
+function initializeDatabaseListeners() {
+  const qMessages = query(messagesCollection, orderBy("time", "asc"));
 
-      if (godIsActive && currentAnswer !== null) {
-        if (parseInt(text) === currentAnswer) {
-          godIsActive = false;
-          currentAnswer = null;
-          messageArea.value = "";
-          await sendGodSms("❌ Manual override recognized. I am muted until the cycle loop re-initializes.");
-          return;
-        } else {
-          messageArea.value = "";
-          await sendGodSms("❌ SYSTEM VERIFICATION FAILURE. Retake challenge or face database clear.");
-          return;
-        }
-      }
+  // Batch-driven rendering logic using fragments and RAF loops for layout optimization
+  onSnapshot(qMessages, (snapshot) => {
+    if (!chatHistory) return;
 
-      if (text.toLowerCase() === "/removegod") {
-        messageArea.value = "";
-        if (!godIsActive) {
-          await sendGodSms("Target presence already muted this turn.");
-          return;
-        }
-        const mathQuestion = makeHardQuestion();
-        await sendGodSms(`⚡ SECURITY ARCHITECTURE CHALLENGE: ${mathQuestion}`);
+    window.requestAnimationFrame(() => {
+      chatHistory.innerHTML = "";
+      if (snapshot.empty) {
+        chatHistory.innerHTML = `<div class="system-msg">Grid messaging databanks clear. Connection established.</div>`;
         return;
       }
 
-      await addDoc(messagesCollection, {
-        sender: currentUsername || "Anonymous",
-        senderColor: currentUserColor,
-        message: text,
-        image: selectedImageBase64,
-        time: Date.now()
-      }).catch(err => console.error("Message pack generation anomaly:", err));
+      const renderingFragment = document.createDocumentFragment();
+      let lastSender = "";
 
-      messageArea.value = "";
-      localStorage.removeItem("chat_draft");
-      selectedImageBase64 = "";
-      if (imageInput) imageInput.value = "";
-      if (cameraInput) cameraInput.value = "";
-      if (imagePreviewContainer) imagePreviewContainer.classList.add("hidden");
-      
-      clearTimeout(typingTimeout);
-      updatePresence(true, false);
+      snapshot.forEach((snapshotDoc) => {
+        const msgData = snapshotDoc.data();
+        const msgElement = document.createElement("div");
+        msgElement.className = "message-row animate-fade-in";
 
-      if (text.toLowerCase().startsWith("@ai")) {
-        const cleanedPrompt = text.replace(/^@ai\s*/i, "").trim();
-        if (cleanedPrompt) {
-          fetchAiReply(cleanedPrompt);
+        const isMe = msgData.sender === currentUsername;
+        if (isMe) msgElement.classList.add("me");
+
+        const hasMedia = !!msgData.imageUrl;
+        const textValue = msgData.message || "";
+        const isConsecutive = lastSender === msgData.sender;
+        lastSender = msgData.sender;
+
+        let contentPayload = "";
+        if (!isConsecutive) {
+          const userAvatarInitial = msgData.sender ? msgData.sender.charAt(0).toUpperCase() : "?";
+          const resolvedAccentColor = msgData.senderColor || "var(--accent)";
+          
+          // Append unique badge tags dynamically for admin level operators
+          let adminBadgeElement = "";
+          const downcasedSender = (msgData.sender || "").toLowerCase().trim();
+          if (downcasedSender === "ace" || downcasedSender === "ghost") {
+            adminBadgeElement = `<span class="admin-badge" style="background:linear-gradient(135deg,#ff4757,#ff6b6b);color:#fff;font-size:8px;font-weight:800;padding:1px 5px;border-radius:4px;margin-left:5px;box-shadow:0 0 8px rgba(255,71,87,0.4);">⚡ ADMIN</span>`;
+          }
+
+          contentPayload += `
+            <div class="message-meta">
+              <div class="user-avatar-circle" style="background:${resolvedAccentColor}">${userAvatarInitial}</div>
+              <span class="sender-name" style="color:${resolvedAccentColor}">${msgData.sender}</span>
+              ${adminBadgeElement}
+            </div>`;
+        }
+
+        const parseCleanString = cleanLatexTags(textValue);
+        let bubbleRenderBlock = "";
+        if (hasMedia) {
+          bubbleRenderBlock = `
+            <div class="bubble visual-bubble">
+              <div class="bubble-image-wrap">
+                <img src="${msgData.imageUrl}" class="chat-attached-image lazy-trigger" alt="Decrypted Transmitted Payload Visual">
+                <div class="img-overlay-specs">INSPECT VIEWPORT</div>
+              </div>
+              ${parseCleanString ? `<div class="bubble-content image-caption-spacing">${parseCleanString}</div>` : ""}
+            </div>`;
         } else {
-          await addDoc(messagesCollection, {
-            sender: "AI Bot",
-            senderColor: "#ff9f43",
-            message: "👋 Ready to serve. Input `@ai` followed by a request description.",
-            time: Date.now()
+          bubbleRenderBlock = `
+            <div class="bubble">
+              <div class="bubble-content">${parseCleanString}</div>
+            </div>`;
+        }
+
+        contentPayload += `
+          <div class="message-wrapper">
+            ${bubbleRenderBlock}
+            <span class="message-timestamp">${formatDisplayTime(msgData.time)}</span>
+          </div>`;
+
+        msgElement.innerHTML = contentPayload;
+
+        // Image Click Modal Triggers
+        if (hasMedia) {
+          const targetImg = msgElement.querySelector(".chat-attached-image");
+          targetImg?.addEventListener("click", () => {
+            if (zoomModal && zoomedImage) {
+              zoomedImage.src = msgData.imageUrl;
+              zoomModal.classList.remove("hidden");
+            }
           });
         }
+
+        renderingFragment.appendChild(msgElement);
+      });
+
+      chatHistory.appendChild(renderingFragment);
+      chatHistory.scrollTop = chatHistory.scrollHeight;
+    });
+  });
+
+  // Operators List Layout Synced Snapshot Loop
+  onSnapshot(query(statusCollection), (snapshot) => {
+    if (!userList) return;
+    window.requestAnimationFrame(() => {
+      userList.innerHTML = "";
+      const currentEpoch = Date.now();
+
+      snapshot.forEach((userDoc) => {
+        const profile = userDoc.data();
+        const isStale = (currentEpoch - (profile.lastSeen || 0)) > 60000;
+        if (!profile.isOnline || isStale) return;
+
+        const onlineUserRow = document.createElement("div");
+        onlineUserRow.className = "user-card";
+        
+        let indicatorStyleClass = "user-status-dot online";
+        if (profile.isTyping) indicatorStyleClass = "user-status-dot typing-pulse-dot";
+
+        onlineUserRow.innerHTML = `
+          <div class="user-card-avatar" style="border-color:${profile.color || 'var(--accent)'}">
+            ${(profile.username || "X").charAt(0).toUpperCase()}
+          </div>
+          <span class="user-card-name">${profile.username}</span>
+          <div class="${indicatorStyleClass}"></div>
+        `;
+        userList.appendChild(onlineUserRow);
+      });
+    });
+  });
+
+  // Typing Matrix Multi-Operator Listening Node
+  onSnapshot(query(statusCollection), (snapshot) => {
+    let typingOperators = [];
+    snapshot.forEach((uDoc) => {
+      const uData = uDoc.data();
+      if (uData.isTyping && uData.username !== currentUsername && (Date.now() - (uData.lastSeen || 0)) < 15000) {
+        typingOperators.push(uData.username);
       }
     });
-  }
 
-  if (themeBtn && chatContainer) {
-    themeBtn.addEventListener("click", () => {
-      currentThemeIndex = (currentThemeIndex + 1) % themes.length;
-      localStorage.setItem("chat_theme_index", currentThemeIndex);
-      chatContainer.style.backgroundColor = themes[currentThemeIndex];
-    });
-  }
+    if (typingOperators.length > 0) {
+      globalTypingDisplayString = `📡 ${typingOperators.join(", ")} formatting data packets...`;
+    } else {
+      globalTypingDisplayString = "";
+    }
+    syncHeaderInformationOutput();
+  });
+}
 
-  if (incFontBtn && decFontBtn) {
-    incFontBtn.addEventListener("click", () => {
-      if (currentFontSize < maxFontSize) {
-        currentFontSize += 2;
-        applyChatFontSize(currentFontSize);
-      }
-    });
-    
-    decFontBtn.addEventListener("click", () => {
-      if (currentFontSize > minFontSize) {
-        currentFontSize -= 2;
-        applyChatFontSize(currentFontSize);
-      }
-    });
+function syncHeaderInformationOutput() {
+  if (!typingIndicator) return;
+  if (globalTypingDisplayString) {
+    typingIndicator.innerHTML = globalTypingDisplayString;
+    typingIndicator.classList.remove("hidden");
+  } else {
+    typingIndicator.classList.add("hidden");
   }
+}
 
-  if (clearChatBtn) {
-    clearChatBtn.addEventListener("click", async () => {
-      if (confirm("Confirm full purge of shared visual message data?")) {
-        await purgeChatRoomLogs();
-      }
-    });
-  }
+// User Action Trigger Handlers Bindings
+function bindUserEventHandlers() {
+  // Primary Text Dispatch Key triggers
+  sendBtn?.addEventListener("click", dispatchDataPacket);
+  messageInput?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      dispatchDataPacket();
+    }
+  });
 
-  if (zoomInBtn && zoomedImage) {
-    zoomInBtn.addEventListener("click", () => {
-      currentScale += 0.25;
-      zoomedImage.style.transform = `scale(${currentScale})`;
-    });
-  }
+  // Keypress Typing Status Triggers
+  messageInput?.addEventListener("input", () => {
+    updatePresence(true, true);
+    if (typingTimeout) clearTimeout(typingTimeout);
+    typingTimeout = setTimeout(() => {
+      updatePresence(true, false);
+    }, 4000);
+  });
 
-  if (zoomOutBtn && zoomedImage) {
-    zoomOutBtn.addEventListener("click", () => {
-      if (currentScale > 0.5) {
-        currentScale -= 0.25;
-        zoomedImage.style.transform = `scale(${currentScale})`;
-      }
-    });
-  }
+  // Image Import Actions Hookup
+  imageUploadInput?.addEventListener("change", handleFileImportSelection);
+  cancelImageBtn?.addEventListener("click", resetVisualBufferInput);
 
+  // Layout View Interface Modifiers
+  themeToggleBtn?.addEventListener("click", () => {
+    coreThemeIndex = (coreThemeIndex + 1) % cryptThemes.length;
+    document.documentElement.style.setProperty('--bg-chat', cryptThemes[coreThemeIndex]);
+  });
+
+  clearChatBtn?.addEventListener("click", async () => {
+    if (confirm("Confirm full purge of shared visual message data?")) {
+      await purgeChatRoomLogs();
+    }
+  });
+
+  incFontBtn?.addEventListener("click", () => applyGlobalFontSize(currentFontSize + 2));
+  decFontBtn?.addEventListener("click", () => applyGlobalFontSize(currentFontSize - 2));
+
+  // Refactored Zoom Modal Close Interactions via Touch Gestures
   if (closeZoom && zoomModal) {
-    closeZoom.addEventListener("click", () => {
-      zoomModal.classList.add("hidden");
-    });
+    closeZoom.addEventListener("click", () => zoomModal.classList.add("hidden"));
   }
 
-  // Back to bottom layout navigation injectors
-  const scrollBtn = document.createElement("button");
-  scrollBtn.id = "scrollBottomBtn";
-  scrollBtn.type = "button";
-  scrollBtn.textContent = "⬇";
-  scrollBtn.title = "Scroll to latest message";
-  document.querySelector(".chat-container")?.appendChild(scrollBtn);
+  if (zoomModal) {
+    zoomModal.addEventListener("touchstart", (e) => {
+      touchStartX = e.changedTouches[0].screenX;
+    }, { passive: true });
 
-  const scrollToLatest = () => {
+    zoomModal.addEventListener("touchend", (e) => {
+      touchEndX = e.changedTouches[0].screenX;
+      evaluateLightboxGestures();
+    }, { passive: true });
+  }
+
+  // Floating Navigation Action Attachment Routine
+  const scrollBottomTrigger = document.createElement("button");
+  scrollBottomTrigger.id = "scrollBottomBtn";
+  scrollBottomTrigger.type = "button";
+  scrollBottomTrigger.textContent = "⬇";
+  scrollBottomTrigger.title = "Scroll to latest message";
+  document.querySelector(".chat-container")?.appendChild(scrollBottomTrigger);
+
+  const jumpToBottomBounds = () => {
     if (!chatHistory) return;
     chatHistory.scrollTo({ top: chatHistory.scrollHeight, behavior: "smooth" });
   };
 
-  scrollBtn.addEventListener("click", scrollToLatest);
+  scrollBottomTrigger.addEventListener("click", jumpToBottomBounds);
   chatHistory?.addEventListener("scroll", () => {
-    const nearBottom = chatHistory.scrollHeight - chatHistory.scrollTop - chatHistory.clientHeight < 80;
-    scrollBtn.style.display = nearBottom ? "none" : "flex";
+    const fromBottomThreshold = chatHistory.scrollHeight - chatHistory.scrollTop - chatHistory.clientHeight;
+    if (fromBottomThreshold > 400) {
+      scrollBottomTrigger.classList.add("visible");
+    } else {
+      scrollBottomTrigger.classList.remove("visible");
+    }
   });
+}
+
+function evaluateLightboxGestures() {
+  const horizontalSwipeLimit = 80;
+  if (Math.abs(touchEndX - touchStartX) > horizontalSwipeLimit) {
+    zoomModal.classList.add("hidden");
+  }
+}
+
+// Data Serialization Sending Blocks
+async function dispatchDataPacket() {
+  const messageString = messageInput.value.trim();
+  if (!messageString && !selectedImageBase64) return;
+
+  const currentPayloadMessage = messageString;
+  const currentPayloadImage = selectedImageBase64;
+
+  // Clear tracking references instantaneously
+  messageInput.value = "";
+  resetVisualBufferInput();
+  if (typingTimeout) clearTimeout(typingTimeout);
+  updatePresence(true, false);
+
+  try {
+    // Process command routines matching deep AI bot calls
+    if (currentPayloadMessage.startsWith("/ai ")) {
+      const isolatedPrompt = currentPayloadMessage.substring(4).trim();
+      
+      // Post user's initial command prompt entry immediately to history stack
+      await addDoc(messagesCollection, {
+        sender: currentUsername,
+        senderColor: currentUserColor || "#00d2d3",
+        message: currentPayloadMessage,
+        imageUrl: currentPayloadImage || null,
+        time: Date.now()
+      });
+
+      if (isolatedPrompt) {
+        await executeAiConversationLoop(isolatedPrompt);
+      }
+      return;
+    }
+
+    // Default processing track routing
+    await addDoc(messagesCollection, {
+      sender: currentUsername,
+      senderColor: currentUserColor || "#00d2d3",
+      message: currentPayloadMessage,
+      imageUrl: currentPayloadImage || null,
+      time: Date.now()
+    });
+
+  } catch (err) {
+    console.error("Packet database record drop failure:", err);
+  }
+}
+
+// Context History AI Response Operations Engine
+async function executeAiConversationLoop(promptText) {
+  try {
+    updateAiModuleState(true);
+
+    // Append user sequence string context directly onto the rolling history chain array
+    aiConversationHistory.push({ role: "user", content: promptText });
+
+    // Limit active chat history limits to 12 items to preserve mobile device performance metrics
+    if (aiConversationHistory.length > 13) {
+      aiConversationHistory = [aiConversationHistory[0], ...aiConversationHistory.slice(-12)];
+    }
+
+    const outputResponse = await fetch("https://text.pollinations.ai/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages: aiConversationHistory })
+    });
+
+    const outputText = await outputResponse.text();
+    const cleanSystemReply = outputText ? outputText.trim() : "Core inference engine returned an empty operational packet response.";
+
+    // Insert assistant response statement vector into tracking context
+    aiConversationHistory.push({ role: "assistant", content: cleanSystemReply });
+
+    await addDoc(messagesCollection, {
+      sender: "AI Bot",
+      senderColor: "#ff9f43",
+      message: cleanSystemReply,
+      imageUrl: null,
+      time: Date.now()
+    });
+
+  } catch (error) {
+    console.error("AI Network engine communication error:", error);
+  } finally {
+    updateAiModuleState(false);
+  }
+}
+
+async function updateAiModuleState(isProcessing) {
+  try {
+    await setDoc(doc(statusCollection, "ai_bot_presence_node"), {
+      username: "AI Bot",
+      color: "#ff9f43",
+      isOnline: true,
+      isTyping: isProcessing,
+      lastSeen: Date.now()
+    }, { merge: true });
+  } catch (e) {
+    console.error("AI node tracking update blocked:", e);
+  }
+}
+
+// Media Compression Handlers Pipeline
+function handleFileImportSelection(event) {
+  const fileTarget = event.target.files?.[0];
+  if (!fileTarget) return;
+
+  const objectReader = new FileReader();
+  objectReader.onload = function(e) {
+    const structuralImg = new Image();
+    structuralImg.onload = function() {
+      // Offscreen HTML5 canvas compression framework implementation
+      const offscreenCanvas = document.createElement("canvas");
+      let computedWidth = structuralImg.width;
+      let computedHeight = structuralImg.height;
+      const dimensionsLimitBound = 600;
+
+      if (computedWidth > dimensionsLimitBound || computedHeight > dimensionsLimitBound) {
+        if (computedWidth > computedHeight) {
+          computedHeight = Math.round((computedHeight * dimensionsLimitBound) / computedWidth);
+          computedWidth = dimensionsLimitBound;
+        } else {
+          computedWidth = Math.round((computedWidth * dimensionsLimitBound) / computedHeight);
+          computedHeight = dimensionsLimitBound;
+        }
+      }
+
+      offscreenCanvas.width = computedWidth;
+      offscreenCanvas.height = computedHeight;
+      const renderContext2d = offscreenCanvas.getContext("2d");
+      renderContext2d?.drawImage(structuralImg, 0, 0, computedWidth, computedHeight);
+
+      selectedImageBase64 = offscreenCanvas.toDataURL("image/jpeg", 0.6);
+      
+      if (imagePreview && imagePreviewContainer) {
+        imagePreview.src = selectedImageBase64;
+        imagePreviewContainer.classList.remove("hidden");
+      }
+    };
+    structuralImg.src = e.target?.result;
+  };
+  objectReader.readAsDataURL(fileTarget);
+}
+
+function resetVisualBufferInput() {
+  selectedImageBase64 = "";
+  if (imageUploadInput) imageUploadInput.value = "";
+  imagePreviewContainer?.classList.add("hidden");
+  if (imagePreview) imagePreview.src = "";
+}
+
+// Remote Clean Up Routine Operations
+async function purgeChatRoomLogs() {
+  try {
+    const recordsSnapshot = await getDocs(messagesCollection);
+    const databaseBatchInstance = writeBatch(db);
+    recordsSnapshot.forEach((docRecord) => {
+      databaseBatchInstance.delete(docRecord.ref);
+    });
+    await databaseBatchInstance.commit();
+  } catch (err) {
+    console.error("System storage clear execution interrupted:", err);
+  }
+}
+
+// Data Presentation Utility Handlers
+function cleanLatexTags(inputString) {
+  if (!inputString) return "";
+  return inputString
+    .replace(/\$\$/g, '')
+    .replace(/\$/g, '')
+    .replace(/\\text\{([^}]+)\}/g, '$1')
+    .replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, '$1/$2')
+    .replace(/\\([a-zA-Z]+)/g, '');
+}
+
+function formatDisplayTime(unixMillis) {
+  if (!unixMillis) return "";
+  const dateObj = new Date(unixMillis);
+  return dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+}
+
+// Auto Unload Cleanup Callbacks
+window.addEventListener("beforeunload", () => {
+  updatePresence(false);
 });
