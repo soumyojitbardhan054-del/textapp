@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>GhostChat // Secure Terminal</title>
+    <title>GhostChat // Hyper-Secure Communication Mainframe</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -85,6 +85,14 @@
                 <p id="mobileUserDisplay">Active Session Node</p>
             </div>
             
+            <div class="header-search-box">
+                <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+                <input type="text" id="chatSearchInput" placeholder="Filter historic buffers..." autocomplete="off" spellcheck="false">
+                <span id="clearSearchBtn" class="clear-search-x hidden">✕</span>
+            </div>
+            
             <div class="header-actions">
                 <button id="decFontBtn" class="secondary-btn icon-btn" title="Decrease Structural Font Scaling">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14"/></svg>
@@ -118,6 +126,14 @@
             </div>
         </header>
 
+        <div id="pinnedMessagesShelf" class="pinned-messages-shelf hidden">
+            <div class="pinned-shelf-icon">📌</div>
+            <div class="pinned-shelf-carousel">
+                <div id="pinnedContentDisplay" class="pinned-text-scroller">No active parameters pinned currently.</div>
+            </div>
+            <button id="unpinActiveBtn" class="unpin-shelf-action-btn" title="Unpin Current Node Message">✕</button>
+        </div>
+
         <div id="chatHistory" class="custom-scrollbar">
             <div class="skeleton-wrapper">
                 <div class="bubble-skeleton incoming"></div>
@@ -128,6 +144,24 @@
         <div id="typingIndicator" class="typing-banner hidden"></div>
 
         <footer class="input-area">
+            <div id="quoteContextOverlay" class="quote-context-overlay hidden">
+                <div class="quote-bar-accent"></div>
+                <div class="quote-overlay-details">
+                    <span class="quote-overlay-title">Replying to <b id="quoteTargetUser">User</b></span>
+                    <p id="quoteTargetSnippet" class="quote-overlay-text">Staged reference excerpt...</p>
+                </div>
+                <button id="cancelQuoteBtn" class="close-overlay-btn">✕</button>
+            </div>
+
+            <div id="editContextOverlay" class="edit-context-overlay hidden">
+                <div class="edit-bar-accent"></div>
+                <div class="edit-overlay-details">
+                    <span class="edit-overlay-title">Editing Transmitted Package</span>
+                    <p id="editTargetSnippet" class="edit-overlay-text">Staged edit message packet context...</p>
+                </div>
+                <button id="cancelEditBtn" class="close-overlay-btn">✕</button>
+            </div>
+
             <div id="imagePreviewContainer" class="hidden">
                 <div class="preview-wrapper">
                     <img id="imagePreview" src="" alt="Staged Asset Attachment Matrix">
@@ -178,6 +212,21 @@
     <div class="zoom-controls">
         <button id="zoomOutBtn" class="control-btn-blur">✕ Zoom Out</button>
         <button id="zoomInBtn" class="control-btn-blur">➕ Zoom In</button>
+    </div>
+</div>
+
+<div id="forwardModal" class="modal hidden-modal">
+    <div class="modal-content text-left-override animate-scale-up">
+        <h2>Forward Data Signature Package</h2>
+        <p>Select an online target identity network node to replicate the active transmission payload towards.</p>
+        
+        <div id="forwardUsersDirectory" class="forward-users-directory custom-scrollbar">
+            <p class="empty-directory-text">No alternative active terminals detected inside segment matrix.</p>
+        </div>
+        
+        <div class="modal-footer-actions">
+            <button id="closeForwardBtn" class="secondary-btn cancel-modal-btn">Cancel Routing</button>
+        </div>
     </div>
 </div>
 
