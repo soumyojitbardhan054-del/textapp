@@ -147,7 +147,7 @@ document.addEventListener("DOMContentLoaded", () => {
         usernameFeedback.textContent = "";
         return;
       }
-      if (nameToCheck.toLowerCase() === currentUsername.toLowerCase()) {
+      if (currentUsername && nameToCheck.toLowerCase() === currentUsername.toLowerCase()) {
         usernameFeedback.textContent = "✓ Currently Assigned to Current Session";
         usernameFeedback.style.color = "#1dd1a1";
         return;
@@ -313,7 +313,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // ==========================================
-  // SWIPEABLE TOUCH IMAGING LIGHTBOX MATRIX
+  // HYPER-COMPATIBLE MOBILE SWIPE CAROUSEL ENGINE
   // ==========================================
   function setupLightboxIndex(idx) {
     if (idx < 0 || idx >= galleryImages.length) return;
@@ -336,7 +336,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
       if (e.target.classList.contains("chat-img")) {
         const activeSrc = e.target.src;
-        // Collect all assets present on history canvas
+        // Collect all image references currently active on history canvas
         galleryImages = Array.from(document.querySelectorAll(".chat-img")).map(img => img.src);
         const findIdx = galleryImages.indexOf(activeSrc);
         if (zoomModal) {
@@ -347,12 +347,13 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Attach Touch events for swipe navigation controls on viewport overlays
+  // Mobile Friendly Touch Events Supporting Passive Interceptions
   if (swipeContainer) {
     swipeContainer.addEventListener("touchstart", (e) => {
-      if (currentScale > 1) return; // Disable swiping when structural magnification is applied
+      if (currentScale > 1) return; // Disable structural transitions if user is magnified
       isSwiping = true;
       swipeStartX = e.touches[0].clientX;
+      swipeCurrentX = swipeStartX;
     }, { passive: true });
 
     swipeContainer.addEventListener("touchmove", (e) => {
@@ -364,12 +365,10 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!isSwiping) return;
       isSwiping = false;
       const deltaX = swipeCurrentX - swipeStartX;
-      if (Math.abs(deltaX) > 60) {
+      if (Math.abs(deltaX) > 50) { // Threshold optimization for fast, highly fluid mobile interactions
         if (deltaX > 0) {
-          // Swipe Right -> Previous image
           if (currentGalleryIndex > 0) setupLightboxIndex(currentGalleryIndex - 1);
         } else {
-          // Swipe Left -> Next image
           if (currentGalleryIndex < galleryImages.length - 1) setupLightboxIndex(currentGalleryIndex + 1);
         }
       }
@@ -395,9 +394,9 @@ document.addEventListener("DOMContentLoaded", () => {
       const data = snapshotDoc.data();
       const msgId = snapshotDoc.id;
       const msgElement = document.createElement("div");
-      const isMe = data.sender.toLowerCase() === currentUsername.toLowerCase();
-      const isConsecutive = data.sender.toLowerCase() === lastSender.toLowerCase();
-      lastSender = data.sender;
+      const isMe = data.sender && currentUsername && data.sender.toLowerCase() === currentUsername.toLowerCase();
+      const isConsecutive = data.sender && lastSender && data.sender.toLowerCase() === lastSender.toLowerCase();
+      lastSender = data.sender || "";
 
       msgElement.className = `message-wrapper ${isMe ? "me" : "them"} ${isConsecutive ? "consecutive" : ""}`;
       const timeString = data.time ? new Date(data.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "";
@@ -406,15 +405,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
       let innerContent = "";
       if (!isConsecutive) {
-        const adminBadge = checkAdminStatus(data.sender) ? `<span class="admin-badge-label" style="border: 1px solid ${customUserColor}; font-size:9px; margin-left:4px; padding:1px 4px; border-radius:4px; color:${customUserColor}">Ace</span>` : "";
+        const isAdmin = checkAdminStatus(data.sender);
+        const adminBadge = isAdmin ? `<span class="admin-badge-label" style="border: 1px solid ${customUserColor}; font-size:9px; margin-left:6px; padding:1px 4px; border-radius:4px; color:${customUserColor}">Ace</span>` : "";
         innerContent += `<div class="message-meta">
           <div class="user-avatar-circle" style="background:${customUserColor}">${firstInitial}</div>
-          <span class="sender-name" style="color:${customUserColor}">${data.sender}${adminBadge}</span>
+          <span class="sender-name" style="color:${customUserColor}">${data.sender || "Anonymous"}${adminBadge}</span>
         </div>`;
       }
       
       innerContent += `<div class="bubble-layout">`;
-      if (data.image) innerContent += `<img src="${data.image}" class="chat-img" alt="Shared Image">`;
+      if (data.image) innerContent += `<img src="${data.image}" class="chat-img" alt="Shared Asset">`;
       if (data.message) innerContent += `<div class="bubble" style="${isMe ? `background:${customUserColor};color:#111;` : ''}">${data.message}</div>`;
       
       innerContent += `
@@ -428,7 +428,10 @@ document.addEventListener("DOMContentLoaded", () => {
       chatHistory.appendChild(msgElement);
     });
 
-    chatHistory.scrollTo({ top: chatHistory.scrollHeight, behavior: "smooth" });
+    // Mobile safe scroll tracking updates
+    setTimeout(() => {
+      if (chatHistory) chatHistory.scrollTop = chatHistory.scrollHeight;
+    }, 50);
   });
 
   // Handle Mobile Virtual Keyboard Resize Calculations
@@ -480,9 +483,8 @@ document.addEventListener("DOMContentLoaded", () => {
   async function fetchAiReply(userPrompt) {
     try {
       updateAiPresence(true);
-      // Append modern session architecture history layer parameters
       aiContextMemory.push({ role: "user", content: userPrompt });
-      if (aiContextMemory.length > 12) aiContextMemory.shift(); // Bound memory to optimize network packets
+      if (aiContextMemory.length > 12) aiContextMemory.shift(); // Bound memory packet size
 
       const payloadMessages = [
         { role: "system", content: "You are a swift, hyper-optimized conversational engineer assistant built inside GhostChat channel. Keep structural formatting tight, markdown clean, and replies professional." },
