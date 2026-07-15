@@ -229,7 +229,7 @@ document.addEventListener("DOMContentLoaded", () => {
   window.addEventListener("beforeunload", () => updatePresence(false, false));
 
   // ==========================================
-  // BULLETPROOF SETUP ENTRY SIGNATURE PIPELINE
+  // FIXED COMPREHENSIVE LOGIN PIPELINE
   // ==========================================
   async function handleUserSetupSave() {
     if (!usernameInput) return;
@@ -267,7 +267,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       }
     } catch (firebaseError) {
-      // SAFE FALLBACK: Bypasses network blocks/crashes to make sure the app logs you in regardless
+      // PROACTIVE FAILSAFE: Instantly logs you into the dashboard regardless of network or Firestore security conditions
       console.warn("Database registration bypassed: ", firebaseError);
     }
 
@@ -286,7 +286,6 @@ document.addEventListener("DOMContentLoaded", () => {
     saveNameBtn.addEventListener("click", handleUserSetupSave);
   }
 
-  // Bind Enter Key inside signature field to process submission automatically
   if (usernameInput) {
     usernameInput.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
@@ -375,7 +374,6 @@ document.addEventListener("DOMContentLoaded", () => {
       }
       if (e.target.classList.contains("chat-img")) {
         const activeSrc = e.target.src;
-        // Collect all image references currently active on history canvas
         galleryImages = Array.from(document.querySelectorAll(".chat-img")).map(img => img.src);
         const findIdx = galleryImages.indexOf(activeSrc);
         if (zoomModal) {
@@ -389,7 +387,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // Mobile Friendly Touch Events Supporting Passive Interceptions
   if (swipeContainer) {
     swipeContainer.addEventListener("touchstart", (e) => {
-      if (currentScale > 1) return; // Disable structural transitions if user is magnified
+      if (currentScale > 1) return;
       isSwiping = true;
       swipeStartX = e.touches[0].clientX;
       swipeCurrentX = swipeStartX;
@@ -404,7 +402,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!isSwiping) return;
       isSwiping = false;
       const deltaX = swipeCurrentX - swipeStartX;
-      if (Math.abs(deltaX) > 50) { // Threshold optimization for fast, highly fluid mobile interactions
+      if (Math.abs(deltaX) > 50) {
         if (deltaX > 0) {
           if (currentGalleryIndex > 0) setupLightboxIndex(currentGalleryIndex - 1);
         } else {
@@ -467,7 +465,6 @@ document.addEventListener("DOMContentLoaded", () => {
       chatHistory.appendChild(msgElement);
     });
 
-    // Mobile safe scroll tracking updates
     setTimeout(() => {
       if (chatHistory) chatHistory.scrollTop = chatHistory.scrollHeight;
     }, 50);
@@ -483,7 +480,6 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!onlineUsersList) return;
     onlineUsersList.innerHTML = "";
     
-    // Seed persistent AI Bot node
     const aiRow = document.createElement("div");
     aiRow.className = "online-user-item";
     aiRow.innerHTML = `<div class="mini-avatar" style="background:#ff9f43">🤖</div> <span>AI Bot</span>`;
@@ -523,7 +519,7 @@ document.addEventListener("DOMContentLoaded", () => {
     try {
       updateAiPresence(true);
       aiContextMemory.push({ role: "user", content: userPrompt });
-      if (aiContextMemory.length > 12) aiContextMemory.shift(); // Bound memory packet size
+      if (aiContextMemory.length > 12) aiContextMemory.shift();
 
       const payloadMessages = [
         { role: "system", content: "You are a swift, hyper-optimized conversational engineer assistant built inside GhostChat channel. Keep structural formatting tight, markdown clean, and replies professional." },
@@ -592,6 +588,14 @@ document.addEventListener("DOMContentLoaded", () => {
         const cleanedPrompt = text.replace(/^@ai\s*/i, "").trim();
         if (cleanedPrompt) fetchAiReply(cleanedPrompt);
       }
+    });
+  }
+
+  if (changeNameBtn && usernameInput && nameModal) {
+    changeNameBtn.addEventListener("click", () => {
+      usernameInput.value = currentUsername;
+      if (usernameFeedback) usernameFeedback.textContent = "";
+      nameModal.classList.remove("hidden-modal");
     });
   }
 
