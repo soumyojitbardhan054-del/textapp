@@ -1,611 +1,836 @@
-/**
- * Core Application State
- */
-const AppState = {
-    currentUser: {
-        id: null, // Generated persistent ID
-        name: 'Ace',
-        color: '#ff6b6b'
-    },
-    // Registry structured as: { [userId]: { id, name, color, isOnline } }
-    activeUsers: {},
-    currentFontSize: 14,
-    zoomScale: 1.0,
-    replyTargetMessage: null,
-    editTargetMessage: null,
-    attachedImageBase64: null
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {
+  getFirestore,
+  collection,
+  addDoc,
+  doc,
+  setDoc,
+  onSnapshot,
+  query,
+  orderBy,
+  getDocs,
+  getDoc,
+  deleteDoc,
+  writeBatch,
+  updateDoc
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+// Firebase Architecture Configuration Matrix
+const firebaseConfig = {
+  apiKey: "AIzaSyAw5Bjo8hHrrwGy-bLYw-bVj6VxMxQikkY",
+  authDomain: "texting-996fa.firebaseapp.com",
+  projectId: "texting-996fa",
+  storageBucket: "texting-996fa.firebasestorage.app",
+  messagingSenderId: "109418513805",
+  appId: "1:109418513805:web:b9de58d58001d85e6ce9c4"
 };
 
-// Defensive execution helper to safely handle potential missing elements
-function safeBind(id, event, callback) {
-    const el = document.getElementById(id);
-    if (el) {
-        el.addEventListener(event, callback);
-    }
-}
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const messagesCollection = collection(db, "messages");
+const statusCollection = collection(db, "status");
+const usernamesCollection = collection(db, "users");
 
-function safeQueryAndBind(selector, event, callback) {
-    const el = document.querySelector(selector);
-    if (el) {
-        el.addEventListener(event, callback);
-    }
+// Session Context Parameters
+let currentUsername = localStorage.getItem("chat_username") || "";
+let currentUserColor = localStorage.getItem("chat_user_color") || "#00d2d3";
+let selectedImageBase64 = "";
+let typingTimeout = null;
+let aiContextMemory = [];
+
+// Feature Tracking States
+let replyingToId = null;
+let editingMessageId = null;
+let searchQueryStr = "";
+
+// Theme & Viewport Scaling Configuration
+const themes = ["#1e2330", "#2c1a30", "#1a2e26", "#301a1a"];
+let currentThemeIndex = parseInt(localStorage.getItem("chat_theme_index")) || 0;
+let currentFontSize = parseInt(localStorage.getItem('chatFontSize')) || 22;
+const minFontSize = 8;
+const maxFontSize = 46;
+
+// Swipe Gallery Context Variables
+let galleryImages = [];
+let currentGalleryIndex = 0;
+let swipeStartX = 0;
+let swipeCurrentX = 0;
+let isSwiping = false;
+let currentScale = 1;
+
+/**
+ * Dynamically binds variable style layers for real-time fluid resizing overrides
+ */
+function applyChatFontSize(size) {
+  let styleEl = document.getElementById('dynamic-font-style');
+  if (!styleEl) {
+    styleEl = document.createElement('style');
+    styleEl.id = 'dynamic-font-style';
+    document.head.appendChild(styleEl);
+  }
+  styleEl.innerHTML = `.bubble, #message { font-size: ${size}px !important; }`;
+  localStorage.setItem('chatFontSize', size);
 }
 
 /**
- * 1. INITIALIZATION & IDENTITY PERSISTENCE
+ * Validates if user falls under Admin Clearance profiles
  */
-window.addEventListener('DOMContentLoaded', () => {
-    initUserIdentity();
-    setupEventListeners();
-    setupDemoMockData();
-});
+function checkAdminStatus(name) {
+  if (!name) return false;
+  const clean = name.trim().toLowerCase();
+  return clean === "ace" || clean === "ghost";
+}
 
-function initUserIdentity() {
-    let storedId = localStorage.getItem('chat_user_id');
-    if (!storedId) {
-        storedId = 'usr_' + Math.random().toString(36).substr(2, 9);
-        localStorage.setItem('chat_user_id', storedId);
+document.addEventListener("DOMContentLoaded", () => {
+  applyChatFontSize(currentFontSize);
+
+  // Element Cache Matrix
+  const nameModal = document.getElementById("nameModal");
+  const usernameInput = document.getElementById("usernameInput");
+  const usernameFeedback = document.getElementById("usernameFeedback");
+  const saveNameBtn = document.getElementById("saveNameBtn");
+  const changeNameBtn = document.getElementById("changeNameBtn");
+  const currentUserDisplay = document.getElementById("currentUserDisplay");
+  const mobileUserDisplay = document.getElementById("mobileUserDisplay");
+  const chatContainer = document.getElementById("chatContainer");
+  const messageArea = document.getElementById("message");
+  const chatHistory = document.getElementById("chatHistory");
+  const sendBtn = document.getElementById("sendBtn");
+  
+  const imageInput = document.getElementById("imageInput");
+  const cameraInput = document.getElementById("cameraInput");
+  const imagePreviewContainer = document.getElementById("imagePreviewContainer");
+  const imagePreview = document.getElementById("imagePreview");
+  const cancelImage = document.getElementById("cancelImage");
+  
+  const zoomModal = document.getElementById("zoomModal");
+  const swipeContainer = document.getElementById("swipeContainer");
+  const viewerIndexDisplay = document.getElementById("viewerIndexDisplay");
+  const closeZoom = document.getElementById("closeZoom");
+  const zoomInBtn = document.getElementById("zoomInBtn");
+  const zoomOutBtn = document.getElementById("zoomOutBtn");
+
+  const themeBtn = document.getElementById("themeBtn");
+  const clearChatBtn = document.getElementById("clearChatBtn");
+  const incFontBtn = document.getElementById("incFontBtn");
+  const decFontBtn = document.getElementById("decFontBtn");
+
+  const onlineUsersList = document.getElementById("onlineUsersList");
+  const typingIndicator = document.getElementById("typingIndicator");
+
+  // Advanced Features UI Elements
+  const sidebarToggleBtn = document.getElementById("sidebarToggleBtn");
+  const sidebarNode = document.getElementById("sidebarNode");
+  const sidebarOverlay = document.getElementById("sidebarOverlay");
+  const searchToggleBtn = document.getElementById("searchToggleBtn");
+  const searchBarContainer = document.getElementById("searchBarContainer");
+  const chatSearchInput = document.getElementById("chatSearchInput");
+  const closeSearchBtn = document.getElementById("closeSearchBtn");
+  const pinnedMessagesContainer = document.getElementById("pinnedMessagesContainer");
+  const pinnedMessagesList = document.getElementById("pinnedMessagesList");
+  const closePinnedPanelBtn = document.getElementById("closePinnedPanelBtn");
+  const replyContextContainer = document.getElementById("replyContextContainer");
+  const replyUserLabel = document.getElementById("replyUserLabel");
+  const replyTextLabel = document.getElementById("replyTextLabel");
+  const cancelReplyBtn = document.getElementById("cancelReplyBtn");
+
+  if (chatContainer) chatContainer.style.backgroundColor = themes[currentThemeIndex];
+  if (messageArea) messageArea.value = localStorage.getItem("chat_draft") || "";
+
+  // Mobile Hamburger Sidebar Toggle Mechanisms
+  if (sidebarToggleBtn && sidebarNode && sidebarOverlay) {
+    sidebarToggleBtn.addEventListener("click", () => {
+      sidebarNode.classList.toggle("active");
+      sidebarOverlay.classList.toggle("active");
+    });
+    sidebarOverlay.addEventListener("click", () => {
+      sidebarNode.classList.remove("active");
+      sidebarOverlay.classList.remove("active");
+    });
+  }
+
+  // Live Structural Chat Filtration Engine (In-chat Search)
+  if (searchToggleBtn && searchBarContainer) {
+    searchToggleBtn.addEventListener("click", () => {
+      searchBarContainer.classList.toggle("hidden");
+      if (!searchBarContainer.classList.contains("hidden") && chatSearchInput) {
+        chatSearchInput.focus();
+      }
+    });
+  }
+  if (closeSearchBtn && searchBarContainer && chatSearchInput) {
+    closeSearchBtn.addEventListener("click", () => {
+      searchBarContainer.classList.add("hidden");
+      chatSearchInput.value = "";
+      searchQueryStr = "";
+      triggerLocalFiltering();
+    });
+  }
+  if (chatSearchInput) {
+    chatSearchInput.addEventListener("input", (e) => {
+      searchQueryStr = e.target.value.toLowerCase().trim();
+      triggerLocalFiltering();
+    });
+  }
+
+  function triggerLocalFiltering() {
+    const wrappers = document.querySelectorAll(".message-wrapper");
+    wrappers.forEach(wrap => {
+      const bubble = wrap.querySelector(".bubble");
+      if (!searchQueryStr) {
+        wrap.style.display = "";
+        return;
+      }
+      if (bubble && bubble.textContent.toLowerCase().includes(searchQueryStr)) {
+        wrap.style.display = "";
+      } else {
+        wrap.style.display = "none";
+      }
+    });
+  }
+
+  // Dynamic Toggle Support for Active Terminals Container Panel
+  const activeUsersPanel = document.querySelector(".active-users-panel");
+  const panelHeader = document.querySelector(".panel-header");
+  if (panelHeader && activeUsersPanel) {
+    panelHeader.addEventListener("click", () => {
+      activeUsersPanel.classList.toggle("minimized");
+    });
+  }
+
+  // Setup Identity Palette Selectors
+  document.querySelectorAll(".color-dot").forEach(dot => {
+    if (dot.getAttribute("data-color") === currentUserColor) {
+      document.querySelectorAll(".color-dot").forEach(d => d.classList.remove("selected"));
+      dot.classList.add("selected");
     }
-    AppState.currentUser.id = storedId;
+    dot.addEventListener("click", (e) => {
+      document.querySelectorAll(".color-dot").forEach(d => d.classList.remove("selected"));
+      e.target.classList.add("selected");
+      currentUserColor = e.target.getAttribute("data-color");
+    });
+  });
 
-    const storedName = localStorage.getItem('chat_username');
-    const storedColor = localStorage.getItem('chat_color');
+  // Unique Username Live Checker Pipeline
+  let lookupTimeout = null;
+  if (usernameInput) {
+    usernameInput.addEventListener("input", () => {
+      clearTimeout(lookupTimeout);
+      const nameToCheck = usernameInput.value.trim();
+      if (!nameToCheck) {
+        usernameFeedback.textContent = "";
+        return;
+      }
+      if (currentUsername && nameToCheck.toLowerCase() === currentUsername.toLowerCase()) {
+        usernameFeedback.textContent = "✓ Currently Assigned to Current Session";
+        usernameFeedback.style.color = "#1dd1a1";
+        return;
+      }
 
-    const identityModal = document.getElementById('identityModal');
-    
-    if (storedName) {
-        AppState.currentUser.name = storedName;
-        AppState.currentUser.color = storedColor || '#ff6b6b';
-        
-        if (identityModal) {
-            identityModal.classList.add('hidden-modal');
-            identityModal.style.display = 'none'; // Fallback force hide
+      lookupTimeout = setTimeout(async () => {
+        const docRef = doc(usernamesCollection, nameToCheck.toLowerCase().replace(/\s+/g, '_'));
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          usernameFeedback.textContent = "✕ Network signature matches taken profile";
+          usernameFeedback.style.color = "#ff4757";
+        } else {
+          usernameFeedback.textContent = "✓ Signature Available across Cluster";
+          usernameFeedback.style.color = "#1dd1a1";
         }
-        updateCurrentUserUI();
-        syncUserSessionToNetwork();
+      }, 400);
+    });
+  }
+
+  // Network Presence Sync Dispatches
+  async function updatePresence(isOnline, isTyping = false) {
+    if (!currentUsername) return;
+    const userDocRef = doc(statusCollection, currentUsername.toLowerCase().replace(/\s+/g, '_'));
+    await setDoc(userDocRef, {
+      username: currentUsername,
+      color: currentUserColor,
+      isOnline: isOnline,
+      isTyping: isTyping,
+      isAdmin: checkAdminStatus(currentUsername),
+      lastSeen: Date.now()
+    }, { merge: true }).catch(() => {});
+  }
+
+  async function updateAiPresence(isTyping) {
+    const aiDocRef = doc(statusCollection, "ai_bot");
+    await setDoc(aiDocRef, {
+      username: "AI Bot",
+      color: "#ff9f43",
+      isOnline: true,
+      isTyping: isTyping,
+      lastSeen: Date.now()
+    }, { merge: true }).catch(() => {});
+  }
+
+  function updateIdentityDisplays() {
+    if (!nameModal) return;
+    if (currentUsername) {
+      const tag = checkAdminStatus(currentUsername) ? " [ADMIN]" : "";
+      if (currentUserDisplay) currentUserDisplay.textContent = `${currentUsername}${tag}`;
+      if (mobileUserDisplay) mobileUserDisplay.textContent = `Node: ${currentUsername}${tag}`;
+      nameModal.classList.add("hidden-modal");
+      updatePresence(true, false);
     } else {
-        if (identityModal) {
-            identityModal.classList.remove('hidden-modal');
-            identityModal.style.display = 'flex'; // Fallback force show
-        }
+      nameModal.classList.remove("hidden-modal");
     }
-}
+  }
+  updateIdentityDisplays();
 
-function updateCurrentUserUI() {
-    const currentUserDisplay = document.getElementById('currentUserDisplay');
-    if (currentUserDisplay) {
-        currentUserDisplay.textContent = AppState.currentUser.name;
+  window.addEventListener("beforeunload", () => updatePresence(false, false));
+
+  async function handleUserSetupSave() {
+    if (!usernameInput) return;
+    const newName = usernameInput.value.trim();
+    if (!newName) return;
+
+    if (newName.toLowerCase() !== currentUsername.toLowerCase()) {
+      const docRef = doc(usernamesCollection, newName.toLowerCase().replace(/\s+/g, '_'));
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        usernameFeedback.textContent = "✕ System error: Handle matches taken signature.";
+        usernameFeedback.style.color = "#ff4757";
+        return;
+      }
+      
+      // Lease Unique Name Signature inside Firestore Node
+      await setDoc(docRef, { uid: "active_user", timestamp: Date.now() });
+      if (currentUsername) {
+        const oldUserRegistryRef = doc(usernamesCollection, currentUsername.toLowerCase().replace(/\s+/g, '_'));
+        await deleteDoc(oldUserRegistryRef).catch(() => {});
+        const oldPresenceRef = doc(statusCollection, currentUsername.toLowerCase().replace(/\s+/g, '_'));
+        await deleteDoc(oldPresenceRef).catch(() => {});
+      }
     }
+
+    localStorage.setItem("chat_username", newName);
+    localStorage.setItem("chat_user_color", currentUserColor);
+    currentUsername = newName;
     
-    const selfCard = document.getElementById('userSelfCard');
-    if (selfCard) {
-        selfCard.style.borderLeft = `4px solid ${AppState.currentUser.color}`;
+    updateIdentityDisplays();
+  }
+
+  if (saveNameBtn) {
+    saveNameBtn.addEventListener("click", handleUserSetupSave);
+  }
+
+  if (changeNameBtn && usernameInput && nameModal) {
+    changeNameBtn.addEventListener("click", () => {
+      usernameInput.value = currentUsername;
+      usernameFeedback.textContent = "";
+      nameModal.classList.remove("hidden-modal");
+    });
+  }
+
+  // Mobile Gallery & Camera Base64 Downscaler Processors
+  function compressImage(file) {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target.result;
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          let width = img.width;
+          let height = img.height;
+          const MAX_SIZE = 500; // Optimized size envelope for low latency delivery
+          if (width > height && width > MAX_SIZE) { height *= MAX_SIZE / width; width = MAX_SIZE; }
+          else if (height > MAX_SIZE) { width *= MAX_SIZE / height; height = MAX_SIZE; }
+          canvas.width = width; canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL("image/jpeg", 0.5));
+        };
+      };
+    });
+  }
+
+  async function processSelectedFile(file) {
+    if (file && imagePreview && imagePreviewContainer) {
+      selectedImageBase64 = await compressImage(file);
+      imagePreview.src = selectedImageBase64;
+      imagePreviewContainer.classList.remove("hidden");
     }
-}
+  }
 
-/**
- * 2. RESOLVING NAME-CHANGE & DUPLICATION BUGS
- */
-function updateActiveUserRegistry(userId, name, color, isOnline = true) {
-    // Storing users using their explicit ID keys guarantees overwriting instead of duplicates!
-    AppState.activeUsers[userId] = {
-        id: userId,
-        name: name,
-        color: color,
-        isOnline: isOnline
-    };
-    renderActiveUsersList();
-}
-
-function renderActiveUsersList() {
-    const onlineUsersList = document.getElementById('onlineUsersList');
-    if (!onlineUsersList) return;
-
-    onlineUsersList.innerHTML = '';
-
-    Object.values(AppState.activeUsers).forEach(user => {
-        if (!user.isOnline) return;
-
-        const userItem = document.createElement('div');
-        userItem.className = 'online-user-item';
-        userItem.setAttribute('data-user-id', user.id);
-
-        const initial = user.name ? user.name.charAt(0).toUpperCase() : '?';
-
-        userItem.innerHTML = `
-            <div class="mini-avatar" style="background-color: ${user.color || '#2b313f'}">
-                ${initial}
-            </div>
-            <div class="user-item-details">
-                <span class="user-item-handle">${user.name}</span>
-                <span class="user-item-status-label">Online</span>
-            </div>
-        `;
-        onlineUsersList.appendChild(userItem);
+  if (imageInput) imageInput.addEventListener("change", async (e) => { if (e.target.files.length > 0) await processSelectedFile(e.target.files[0]); });
+  if (cameraInput) cameraInput.addEventListener("change", async (e) => { if (e.target.files.length > 0) await processSelectedFile(e.target.files[0]); });
+  if (cancelImage) {
+    cancelImage.addEventListener("click", () => {
+      selectedImageBase64 = "";
+      if (imageInput) imageInput.value = "";
+      if (cameraInput) cameraInput.value = "";
+      if (imagePreviewContainer) imagePreviewContainer.classList.add("hidden");
     });
-}
+  }
 
-function syncUserSessionToNetwork() {
-    updateActiveUserRegistry(
-        AppState.currentUser.id,
-        AppState.currentUser.name,
-        AppState.currentUser.color,
-        true
-    );
-}
+  async function purgeChatRoomLogs() {
+    try {
+      const querySnapshot = await getDocs(messagesCollection);
+      if (querySnapshot.empty) return;
+      const batch = writeBatch(db);
+      querySnapshot.docs.forEach((d) => batch.delete(d.ref));
+      await batch.commit();
+    } catch (err) {
+      console.error(err);
+    }
+  }
 
-/**
- * 3. EVENT LISTENERS MANAGEMENT (DEFENSIVELY BOUND)
- */
-function setupEventListeners() {
-    // --- Mobile Drawer Toggles ---
-    safeBind('menuToggleBtn', 'click', (e) => {
-        e.stopPropagation();
-        const appSidebar = document.getElementById('appSidebar');
-        if (appSidebar) appSidebar.classList.toggle('open');
-    });
+  // ==========================================
+  // HYPER-COMPATIBLE MOBILE SWIPE CAROUSEL ENGINE
+  // ==========================================
+  function setupLightboxIndex(idx) {
+    if (idx < 0 || idx >= galleryImages.length) return;
+    currentGalleryIndex = idx;
+    currentScale = 1;
+    
+    swipeContainer.innerHTML = `<img src="${galleryImages[currentGalleryIndex]}" id="zoomedImage" style="transform: scale(1);" alt="Active View">`;
+    if (viewerIndexDisplay) {
+      viewerIndexDisplay.textContent = `${currentGalleryIndex + 1} / ${galleryImages.length}`;
+    }
+  }
 
-    safeBind('chatHistory', 'click', () => {
-        const appSidebar = document.getElementById('appSidebar');
-        if (appSidebar && appSidebar.classList.contains('open')) {
-            appSidebar.classList.remove('open');
+  // Set Up Dynamic Reply State Context Actions
+  function setupReplyContext(msgId, sender, text) {
+    replyingToId = msgId;
+    if (replyUserLabel) replyUserLabel.textContent = `Replying to ${sender}`;
+    if (replyTextLabel) replyTextLabel.textContent = text || "[Image]";
+    if (replyContextContainer) replyContextContainer.classList.remove("hidden");
+    if (messageArea) messageArea.focus();
+  }
+
+  function clearReplyContext() {
+    replyingToId = null;
+    if (replyContextContainer) replyContextContainer.classList.add("hidden");
+  }
+
+  if (cancelReplyBtn) {
+    cancelReplyBtn.addEventListener("click", clearReplyContext);
+  }
+
+  // Handle Interactive Clicks (Reactions, Pins, Deletes, Edits, Replies, Forwards)
+  if (chatHistory) {
+    chatHistory.addEventListener("click", async (e) => {
+      const target = e.target;
+      const msgId = target.getAttribute("data-id");
+
+      if (target.classList.contains("delete-single-btn")) {
+        if (msgId && confirm("Purge message package node?")) {
+          await deleteDoc(doc(db, "messages", msgId));
         }
-    });
+      }
 
-    // --- Profile Modal Actions ---
-    const colorDots = document.querySelectorAll('.color-dot');
-    colorDots.forEach(dot => {
-        dot.addEventListener('click', () => {
-            colorDots.forEach(d => d.classList.remove('selected'));
-            dot.classList.add('selected');
-            AppState.currentUser.color = dot.getAttribute('data-color') || '#ff6b6b';
-        });
-    });
+      if (target.classList.contains("pin-btn")) {
+        if (msgId) {
+          const isPinned = target.getAttribute("data-pinned") === "true";
+          await updateDoc(doc(db, "messages", msgId), { isPinned: !isPinned });
+        }
+      }
 
-    // --- RE-OPEN PROFILE SETUP VIA CLICK ON SELF-CARD ---
-    safeBind('userSelfCard', 'click', () => {
-        const identityModal = document.getElementById('identityModal');
-        const usernameInput = document.getElementById('usernameInput');
-        if (identityModal && usernameInput) {
-            usernameInput.value = AppState.currentUser.name;
-            colorDots.forEach(dot => {
-                if (dot.getAttribute('data-color') === AppState.currentUser.color) {
-                    dot.classList.add('selected');
-                } else {
-                    dot.classList.remove('selected');
-                }
+      if (target.classList.contains("reply-btn")) {
+        if (msgId) {
+          const senderName = target.getAttribute("data-sender");
+          const msgText = target.getAttribute("data-text");
+          setupReplyContext(msgId, senderName, msgText);
+        }
+      }
+
+      if (target.classList.contains("edit-btn")) {
+        if (msgId && messageArea) {
+          const originalText = target.getAttribute("data-text");
+          editingMessageId = msgId;
+          messageArea.value = originalText;
+          messageArea.focus();
+          if (sendBtn) sendBtn.title = "Update Data Signature";
+        }
+      }
+
+      if (target.classList.contains("forward-btn")) {
+        if (msgId) {
+          const textToForward = target.getAttribute("data-text");
+          const imgToForward = target.getAttribute("data-img");
+          const targetUser = prompt("Forward packet to channel as signature identity handles:", currentUsername);
+          if (targetUser) {
+            await addDoc(messagesCollection, {
+              sender: targetUser,
+              senderColor: currentUserColor,
+              message: textToForward || "",
+              image: imgToForward || "",
+              time: Date.now()
             });
-            identityModal.classList.remove('hidden-modal');
-            identityModal.style.display = 'flex';
+          }
         }
-    });
+      }
 
-    // --- SAVE PROFILE & JOIN ---
-    safeBind('saveIdentityBtn', 'click', () => {
-        const usernameInput = document.getElementById('usernameInput');
-        if (!usernameInput) return;
-
-        const inputVal = usernameInput.value.trim();
-        if (!inputVal) return; // Prevent joining with a blank name
-
-        AppState.currentUser.name = inputVal;
-        
-        localStorage.setItem('chat_username', AppState.currentUser.name);
-        localStorage.setItem('chat_color', AppState.currentUser.color);
-
-        updateCurrentUserUI();
-        syncUserSessionToNetwork();
-
-        const identityModal = document.getElementById('identityModal');
-        if (identityModal) {
-            identityModal.classList.add('hidden-modal');
-            identityModal.style.display = 'none'; // Fallback force hide
+      if (target.classList.contains("reaction-trigger")) {
+        if (msgId) {
+          const emoji = target.getAttribute("data-emoji");
+          const docRef = doc(db, "messages", msgId);
+          const docSnap = await getDoc(docRef);
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            const reactions = data.reactions || {};
+            reactions[emoji] = (reactions[emoji] || 0) + 1;
+            await updateDoc(docRef, { reactions: reactions });
+          }
         }
+      }
+
+      if (target.classList.contains("chat-img")) {
+        const activeSrc = target.src;
+        galleryImages = Array.from(document.querySelectorAll(".chat-img")).map(img => img.src);
+        const findIdx = galleryImages.indexOf(activeSrc);
+        if (zoomModal) {
+          zoomModal.classList.remove("hidden");
+          setupLightboxIndex(findIdx !== -1 ? findIdx : 0);
+        }
+      }
     });
+  }
 
-    // --- Font Controllers ---
-    safeBind('incFontBtn', 'click', () => changeFontSize(2));
-    safeBind('decFontBtn', 'click', () => changeFontSize(-2));
-
-    // --- Clear Canvas ---
-    safeBind('clearChatBtn', 'click', () => {
-        const chatHistory = document.getElementById('chatHistory');
-        if (chatHistory) chatHistory.innerHTML = '<div class="system-msg">Canvas cleared by user</div>';
-        closePinnedShelf();
+  if (closePinnedPanelBtn && pinnedMessagesContainer) {
+    closePinnedPanelBtn.addEventListener("click", () => {
+      pinnedMessagesContainer.classList.add("hidden");
     });
+  }
 
-    // --- Input & Media Submissions ---
-    safeBind('imageUpload', 'change', handleImageAttachment);
-    safeBind('cancelImage', 'click', clearImageAttachment);
-    safeBind('sendBtn', 'click', handleSendMessage);
+  // Mobile Friendly Touch Events Supporting Passive Interceptions
+  if (swipeContainer) {
+    swipeContainer.addEventListener("touchstart", (e) => {
+      if (currentScale > 1) return;
+      isSwiping = true;
+      swipeStartX = e.touches[0].clientX;
+      swipeCurrentX = swipeStartX;
+    }, { passive: true });
 
-    const messageInput = document.getElementById('message');
-    if (messageInput) {
-        messageInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') handleSendMessage();
-        });
-    }
+    swipeContainer.addEventListener("touchmove", (e) => {
+      if (!isSwiping) return;
+      swipeCurrentX = e.touches[0].clientX;
+    }, { passive: true });
 
-    // --- Dynamic Overlays & Lightbox ---
-    safeBind('cancelReplyBtn', 'click', clearReplyContext);
-    safeBind('cancelEditBtn', 'click', clearEditContext);
-    safeBind('unpinShelfBtn', 'click', closePinnedShelf);
-    safeBind('closeZoomBtn', 'click', closeLightbox);
-    safeBind('zoomInBtn', 'click', () => adjustZoom(0.2));
-    safeBind('zoomOutBtn', 'click', () => adjustZoom(-0.2));
-
-    safeBind('imageZoomModal', 'click', (e) => {
-        const imageZoomModal = document.getElementById('imageZoomModal');
-        if (e.target === imageZoomModal) closeLightbox();
+    swipeContainer.addEventListener("touchend", () => {
+      if (!isSwiping) return;
+      isSwiping = false;
+      const deltaX = swipeCurrentX - swipeStartX;
+      if (Math.abs(deltaX) > 50) {
+        if (deltaX > 0) {
+          if (currentGalleryIndex > 0) setupLightboxIndex(currentGalleryIndex - 1);
+        } else {
+          if (currentGalleryIndex < galleryImages.length - 1) setupLightboxIndex(currentGalleryIndex + 1);
+        }
+      }
     });
+  }
 
-    // --- Scrolling Engines ---
-    const chatHistory = document.getElementById('chatHistory');
-    if (chatHistory) {
-        chatHistory.addEventListener('scroll', toggleScrollBottomBtn);
-    }
-    safeBind('scrollBottomBtn', 'click', scrollToBottom);
-}
+  if (zoomInBtn) zoomInBtn.addEventListener("click", () => { const targetImg = document.getElementById("zoomedImage"); if (targetImg) { currentScale += 0.3; targetImg.style.transform = `scale(${currentScale})`; } });
+  if (zoomOutBtn) zoomOutBtn.addEventListener("click", () => { const targetImg = document.getElementById("zoomedImage"); if (targetImg && currentScale > 0.6) { currentScale -= 0.3; targetImg.style.transform = `scale(${currentScale})`; } });
+  if (closeZoom) closeZoom.addEventListener("click", () => zoomModal.classList.add("hidden"));
 
-/**
- * 4. REAL-TIME CHAT ACTIONS & SEND ENGINE
- */
-function handleSendMessage() {
-    const messageInput = document.getElementById('message');
-    if (!messageInput) return;
-
-    const text = messageInput.value.trim();
-    if (!text && !AppState.attachedImageBase64) return;
-
-    if (AppState.editTargetMessage) {
-        applyMessageEdit(AppState.editTargetMessage, text);
-    } else {
-        const messageObj = {
-            id: 'msg_' + Date.now(),
-            senderId: AppState.currentUser.id,
-            senderName: AppState.currentUser.name,
-            senderColor: AppState.currentUser.color,
-            text: text,
-            image: AppState.attachedImageBase64,
-            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            replyTo: AppState.replyTargetMessage ? {
-                sender: AppState.replyTargetMessage.senderName,
-                text: AppState.replyTargetMessage.text || 'Image'
-            } : null
-        };
-
-        appendMessageToDOM(messageObj);
-    }
-
-    messageInput.value = '';
-    clearImageAttachment();
-    clearReplyContext();
-    clearEditContext();
-    scrollToBottom();
-}
-
-function appendMessageToDOM(msg) {
-    const chatHistory = document.getElementById('chatHistory');
+  // Real-time Database Message Streams Engine
+  const qMessages = query(messagesCollection, orderBy("time", "asc"));
+  onSnapshot(qMessages, (snapshot) => {
     if (!chatHistory) return;
-
-    const isMe = msg.senderId === AppState.currentUser.id;
     
-    const wrapper = document.createElement('div');
-    wrapper.id = msg.id;
-    wrapper.className = `message-wrapper ${isMe ? 'me' : 'them'}`;
-    wrapper.setAttribute('data-text', msg.text || '');
+    // Manage persistent tracking lists for both historical rows and structural pins
+    let activePinnedItemsHtml = "";
+    let hasPins = false;
+    
+    chatHistory.innerHTML = "";
+    if (snapshot.empty) {
+      chatHistory.innerHTML = `<div class="system-msg">Room buffers empty. Channel fully secured.</div>`;
+      if (pinnedMessagesContainer) pinnedMessagesContainer.classList.add("hidden");
+      return;
+    }
 
-    const metaMarkup = isMe ? '' : `
-        <div class="message-meta">
-            <div class="user-avatar-circle" style="background-color: ${msg.senderColor}">
-                ${msg.senderName.charAt(0).toUpperCase()}
-            </div>
-            <span class="sender-name">${msg.senderName}</span>
-        </div>
-    `;
+    let lastSender = "";
+    snapshot.forEach((snapshotDoc) => {
+      const data = snapshotDoc.data();
+      const msgId = snapshotDoc.id;
+      const msgElement = document.createElement("div");
+      const isMe = data.sender && currentUsername && data.sender.toLowerCase() === currentUsername.toLowerCase();
+      const isConsecutive = data.sender && lastSender && data.sender.toLowerCase() === lastSender.toLowerCase();
+      lastSender = data.sender || "";
 
-    let replyMarkup = '';
-    if (msg.replyTo) {
-        replyMarkup = `
-            <div class="quote-snippet-preview">
-                <div class="quote-snippet-bar" style="background-color: ${isMe ? '#222938' : 'var(--accent)'}"></div>
-                <div class="quote-snippet-details">
-                    <span class="quote-snippet-sender">${msg.replyTo.sender}</span>
-                    <span class="quote-snippet-text">${msg.replyTo.text}</span>
-                </div>
-            </div>
+      msgElement.className = `message-wrapper ${isMe ? "me" : "them"} ${isConsecutive ? "consecutive" : ""}`;
+      const timeString = data.time ? new Date(data.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "";
+      const customUserColor = data.senderColor || "var(--accent)";
+      const firstInitial = data.sender ? data.sender.charAt(0).toUpperCase() : "?";
+
+      // Render Pin Tracking Layouts
+      if (data.isPinned) {
+        hasPins = true;
+        activePinnedItemsHtml += `
+          <div class="pinned-item-row">
+            <span class="pinned-meta">${data.sender || 'Anon'}: ${data.message || '[Asset Attachment]'}</span>
+            <button class="pin-btn unpin-indicator" data-id="${msgId}" data-pinned="true" style="background:transparent;border:none;color:var(--accent);cursor:pointer;">✕</button>
+          </div>
         `;
-    }
+      }
 
-    let imageMarkup = '';
-    if (msg.image) {
-        imageMarkup = `<img src="${msg.image}" class="chat-img" alt="Uploaded Attachment">`;
-    }
+      let innerContent = "";
+      if (!isConsecutive) {
+        const isAdmin = checkAdminStatus(data.sender);
+        const adminBadge = isAdmin ? `<span class="admin-badge-label" style="border: 1px solid ${customUserColor}; font-size:9px; margin-left:6px; padding:1px 4px; border-radius:4px; color:${customUserColor}">Ace</span>` : "";
+        innerContent += `<div class="message-meta">
+          <div class="user-avatar-circle" style="background:${customUserColor}">${firstInitial}</div>
+          <span class="sender-name" style="color:${customUserColor}">${data.sender || "Anonymous"}${adminBadge}</span>
+        </div>`;
+      }
+      
+      innerContent += `<div class="bubble-layout">`;
+      
+      // If referencing contextual quoted parents (Reply Engine Rendering)
+      if (data.replyingToText) {
+        innerContent += `
+          <div class="quoted-context-bubble" style="background:rgba(255,255,255,0.04); border-left:3px solid ${customUserColor}; padding:4px 8px; margin-bottom:4px; border-radius:4px; font-size:12px; opacity:0.8;">
+            <div style="font-weight:bold; font-size:10px; color:${customUserColor};">Quoting ${data.replyingToUser || 'Anonymous'}</div>
+            <div>${data.replyingToText}</div>
+          </div>
+        `;
+      }
 
-    wrapper.innerHTML = `
-        ${metaMarkup}
-        <div class="hover-reactions-quick-bar">
-            <button class="quick-emoji" onclick="addReactionToMessage('${msg.id}', '❤️')">❤️</button>
-            <button class="quick-emoji" onclick="addReactionToMessage('${msg.id}', '👍')">👍</button>
-            <button class="quick-emoji" onclick="addReactionToMessage('${msg.id}', '🔥')">🔥</button>
-            <button class="quick-emoji" onclick="addReactionToMessage('${msg.id}', '😂')">😂</button>
-        </div>
-        <div class="bubble-layout">
-            ${replyMarkup}
-            <div class="bubble">
-                <span class="bubble-content-span">${msg.text}</span>
-            </div>
-            ${imageMarkup}
-            <div class="bubble-sub">
-                <span class="timestamp">${msg.timestamp}</span>
-                <span class="action-trigger" onclick="setupReplyTo('${msg.id}')">Reply</span>
-                ${isMe ? `<span class="action-trigger" onclick="setupEditOf('${msg.id}')">Edit</span>` : ''}
-                <span class="action-trigger" onclick="pinMessage('${msg.id}')">Pin</span>
-                <span class="action-trigger" style="color:#ff6b6b;" onclick="deleteMessage('${msg.id}')">Delete</span>
-            </div>
-            <div class="active-reactions-pills-row" id="reactions-${msg.id}"></div>
-        </div>
-    `;
-
-    const appendedImg = wrapper.querySelector('.chat-img');
-    if (appendedImg) {
-        appendedImg.addEventListener('click', () => openLightbox(msg.image));
-    }
-
-    chatHistory.appendChild(wrapper);
-}
-
-/**
- * 5. INTERACTIVE FEATURE ACTIONS
- */
-function setupEditOf(msgId) {
-    const wrapper = document.getElementById(msgId);
-    if (!wrapper) return;
-
-    clearReplyContext();
-    
-    const textSpan = wrapper.querySelector('.bubble-content-span');
-    AppState.editTargetMessage = {
-        id: msgId,
-        originalText: textSpan ? textSpan.textContent : ''
-    };
-
-    const messageInput = document.getElementById('message');
-    const editTargetText = document.getElementById('editTargetText');
-    const editContextOverlay = document.getElementById('editContextOverlay');
-
-    if (messageInput) messageInput.value = AppState.editTargetMessage.originalText;
-    if (editTargetText) editTargetText.textContent = AppState.editTargetMessage.originalText;
-    if (editContextOverlay) editContextOverlay.classList.remove('hidden');
-    if (messageInput) messageInput.focus();
-}
-
-function applyMessageEdit(editContext, newText) {
-    const wrapper = document.getElementById(editContext.id);
-    if (wrapper && newText) {
-        const textSpan = wrapper.querySelector('.bubble-content-span');
-        if (textSpan) {
-            textSpan.textContent = newText;
-            if (!wrapper.querySelector('.edited-annotation-tag')) {
-                const editedTag = document.createElement('span');
-                editedTag.className = 'edited-annotation-tag';
-                editedTag.textContent = ' (edited)';
-                textSpan.appendChild(editedTag);
-            }
-        }
-    }
-}
-
-function clearEditContext() {
-    AppState.editTargetMessage = null;
-    const editContextOverlay = document.getElementById('editContextOverlay');
-    if (editContextOverlay) editContextOverlay.classList.add('hidden');
-}
-
-function setupReplyTo(msgId) {
-    const wrapper = document.getElementById(msgId);
-    if (!wrapper) return;
-
-    clearEditContext();
-
-    const textSpan = wrapper.querySelector('.bubble-content-span');
-    const senderElement = wrapper.querySelector('.sender-name');
-    const senderName = senderElement ? senderElement.textContent : 'Me';
-
-    AppState.replyTargetMessage = {
-        id: msgId,
-        senderName: senderName,
-        text: textSpan ? textSpan.textContent : 'Image'
-    };
-
-    const replyTargetUser = document.getElementById('replyTargetUser');
-    const replyTargetText = document.getElementById('replyTargetText');
-    const replyContextOverlay = document.getElementById('replyContextOverlay');
-    const messageInput = document.getElementById('message');
-
-    if (replyTargetUser) replyTargetUser.textContent = senderName;
-    if (replyTargetText) replyTargetText.textContent = AppState.replyTargetMessage.text;
-    if (replyContextOverlay) replyContextOverlay.classList.remove('hidden');
-    if (messageInput) messageInput.focus();
-}
-
-function clearReplyContext() {
-    AppState.replyTargetMessage = null;
-    const replyContextOverlay = document.getElementById('replyContextOverlay');
-    if (replyContextOverlay) replyContextOverlay.classList.add('hidden');
-}
-
-function pinMessage(msgId) {
-    const wrapper = document.getElementById(msgId);
-    if (!wrapper) return;
-
-    const textSpan = wrapper.querySelector('.bubble-content-span');
-    const contentText = textSpan ? textSpan.textContent : 'Image';
-    
-    const pinnedContentPlaceholder = document.getElementById('pinnedContentPlaceholder');
-    const pinnedShelf = document.getElementById('pinnedShelf');
-
-    if (pinnedContentPlaceholder) {
-        pinnedContentPlaceholder.textContent = contentText;
-        pinnedContentPlaceholder.onclick = () => {
-            wrapper.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        };
-    }
-    if (pinnedShelf) pinnedShelf.classList.remove('hidden');
-}
-
-function closePinnedShelf() {
-    const pinnedShelf = document.getElementById('pinnedShelf');
-    if (pinnedShelf) pinnedShelf.classList.add('hidden');
-}
-
-function deleteMessage(msgId) {
-    const wrapper = document.getElementById(msgId);
-    if (wrapper) wrapper.remove();
-}
-
-window.addReactionToMessage = function(msgId, emoji) {
-    const pillsRow = document.getElementById(`reactions-${msgId}`);
-    if (!pillsRow) return;
-
-    let existingPill = Array.from(pillsRow.children).find(pill => 
-        pill.getAttribute('data-emoji') === emoji
-    );
-
-    if (existingPill) {
-        const countSpan = existingPill.querySelector('.react-counter');
-        let count = parseInt(countSpan.textContent, 10);
-        
-        if (existingPill.classList.contains('user-reacted')) {
-            existingPill.classList.remove('user-reacted');
-            count--;
-        } else {
-            existingPill.classList.add('user-reacted');
-            count++;
-        }
-
-        if (count <= 0) {
-            existingPill.remove();
-        } else {
-            countSpan.textContent = count;
-        }
-    } else {
-        const newPill = document.createElement('button');
-        newPill.className = 'emoji-pill-btn user-reacted';
-        newPill.setAttribute('data-emoji', emoji);
-        newPill.onclick = () => addReactionToMessage(msgId, emoji);
-        newPill.innerHTML = `<span>${emoji}</span> <span class="react-counter">1</span>`;
-        pillsRow.appendChild(newPill);
-    }
-};
-
-/**
- * 6. MEDIA ATTACHMENTS & LIGHTBOXES
- */
-function handleImageAttachment(e) {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = function(event) {
-        AppState.attachedImageBase64 = event.target.result;
-        
-        const imagePreview = document.getElementById('imagePreview');
-        const imagePreviewContainer = document.getElementById('imagePreviewContainer');
-        
-        if (imagePreview) imagePreview.src = event.target.result;
-        if (imagePreviewContainer) imagePreviewContainer.classList.remove('hidden');
-    };
-    reader.readAsDataURL(file);
-}
-
-function clearImageAttachment() {
-    AppState.attachedImageBase64 = null;
-    const imageUpload = document.getElementById('imageUpload');
-    const imagePreviewContainer = document.getElementById('imagePreviewContainer');
-    const imagePreview = document.getElementById('imagePreview');
-
-    if (imageUpload) imageUpload.value = '';
-    if (imagePreviewContainer) imagePreviewContainer.classList.add('hidden');
-    if (imagePreview) imagePreview.src = '';
-}
-
-function openLightbox(imgSrc) {
-    AppState.zoomScale = 1.0;
-    
-    const zoomedImage = document.getElementById('zoomedImage');
-    const imageZoomModal = document.getElementById('imageZoomModal');
-
-    if (zoomedImage) {
-        zoomedImage.style.transform = 'scale(1.0)';
-        zoomedImage.src = imgSrc;
-    }
-    if (imageZoomModal) imageZoomModal.classList.remove('hidden');
-}
-
-function closeLightbox() {
-    const imageZoomModal = document.getElementById('imageZoomModal');
-    const zoomedImage = document.getElementById('zoomedImage');
-
-    if (imageZoomModal) imageZoomModal.classList.add('hidden');
-    if (zoomedImage) zoomedImage.src = '';
-}
-
-function adjustZoom(factor) {
-    AppState.zoomScale = Math.max(0.5, Math.min(AppState.zoomScale + factor, 3.0));
-    const zoomedImage = document.getElementById('zoomedImage');
-    if (zoomedImage) {
-        zoomedImage.style.transform = `scale(${AppState.zoomScale})`;
-    }
-}
-
-/**
- * 7. UTILITIES
- */
-function changeFontSize(delta) {
-    AppState.currentFontSize = Math.max(12, Math.min(AppState.currentFontSize + delta, 24));
-    document.documentElement.style.setProperty('--chat-font-size', `${AppState.currentFontSize}px`);
-}
-
-function scrollToBottom() {
-    const chatHistory = document.getElementById('chatHistory');
-    if (chatHistory) {
-        chatHistory.scrollTo({
-            top: chatHistory.scrollHeight,
-            behavior: 'smooth'
+      if (data.image) innerContent += `<img src="${data.image}" class="chat-img" alt="Shared Asset">`;
+      
+      if (data.message) {
+        const editedTag = data.isEdited ? ` <span class="edited-label" style="font-size:10px; opacity:0.5; font-style:italic;">(edited)</span>` : "";
+        innerContent += `<div class="bubble" style="${isMe ? `background:${customUserColor};color:#111;` : ''}">${data.message}${editedTag}</div>`;
+      }
+      
+      // Reaction Engine Presentation Layout Matrix
+      let reactionChips = "";
+      if (data.reactions) {
+        Object.entries(data.reactions).forEach(([emoji, count]) => {
+          if (count > 0) {
+            reactionChips += `<span class="reaction-chip" style="background:rgba(255,255,255,0.08); padding:2px 6px; border-radius:8px; font-size:11px; margin-right:4px;">${emoji} ${count}</span>`;
+          }
         });
+      }
+
+      innerContent += `
+          <div class="reactions-wrapper-row" style="margin-top:4px; display:flex; flex-wrap:wrap;">
+            ${reactionChips}
+          </div>
+          <div class="bubble-sub">
+            <span class="timestamp">${timeString}</span>
+            <div class="action-toolbar-row" style="display:inline-flex; gap:8px; margin-left:8px; opacity:0.7;">
+              <span class="reaction-trigger" data-id="${msgId}" data-emoji="👍" style="cursor:pointer;" title="React 👍">👍</span>
+              <span class="reaction-trigger" data-id="${msgId}" data-emoji="🔥" style="cursor:pointer;" title="React 🔥">🔥</span>
+              <span class="reply-btn" data-id="${msgId}" data-sender="${data.sender || 'Anonymous'}" data-text="${data.message || ''}" style="cursor:pointer;" title="Quote Reply">↩️</span>
+              <span class="forward-btn" data-id="${msgId}" data-text="${data.message || ''}" data-img="${data.image || ''}" style="cursor:pointer;" title="Forward message">➡️</span>
+              ${isMe ? `<span class="edit-btn" data-id="${msgId}" data-text="${data.message || ''}" style="cursor:pointer;" title="Edit Packet">✏️</span>` : ''}
+              <span class="pin-btn" data-id="${msgId}" data-pinned="${data.isPinned ? 'true' : 'false'}" style="cursor:pointer;" title="Toggle Pin">${data.isPinned ? '📌' : '📍'}</span>
+              <span class="delete-single-btn" data-id="${msgId}" style="cursor:pointer;" title="Purge Log">🗑️</span>
+            </div>
+          </div>
+        </div>
+      `;
+      msgElement.innerHTML = innerContent;
+      chatHistory.appendChild(msgElement);
+    });
+
+    // Toggle Visibility of Pinned Matrix Modules dynamically
+    if (pinnedMessagesContainer && pinnedMessagesList) {
+      if (hasPins) {
+        pinnedMessagesList.innerHTML = activePinnedItemsHtml;
+        pinnedMessagesContainer.classList.remove("hidden");
+      } else {
+        pinnedMessagesContainer.classList.add("hidden");
+      }
     }
-}
 
-function toggleScrollBottomBtn() {
-    const chatHistory = document.getElementById('chatHistory');
-    const scrollBottomBtn = document.getElementById('scrollBottomBtn');
-    if (!chatHistory || !scrollBottomBtn) return;
+    // Apply local query constraints dynamically if filters are preset
+    if (searchQueryStr) triggerLocalFiltering();
 
-    const threshold = chatHistory.scrollHeight - chatHistory.clientHeight - 200;
-    if (chatHistory.scrollTop < threshold) {
-        scrollBottomBtn.style.display = 'flex';
-    } else {
-        scrollBottomBtn.style.display = 'none';
-    }
-}
+    // Mobile safe scroll tracking updates
+    setTimeout(() => {
+      if (chatHistory) chatHistory.scrollTop = chatHistory.scrollHeight;
+    }, 50);
+  });
 
-function setupDemoMockData() {
-    updateActiveUserRegistry('usr_bob', 'Bob', '#10ac84');
-    updateActiveUserRegistry('usr_jane', 'Jane', '#54a0ff');
+  // Handle Mobile Virtual Keyboard Resize Calculations
+  window.visualViewport?.addEventListener("resize", () => {
+     setTimeout(() => { if (chatHistory) chatHistory.scrollTop = chatHistory.scrollHeight; }, 100);
+  });
 
-    const mockMsgs = [
-        {
-            id: 'demo_1',
-            senderId: 'usr_bob',
-            senderName: 'Bob',
-            senderColor: '#10ac84',
-            text: "Hey! Welcome back. Give that username form a spin!",
-            image: null,
-            timestamp: '01:22 PM'
+  // Active Terminal Directory Synchronizer with "Last seen at..." support
+  onSnapshot(statusCollection, (snapshot) => {
+    if (!onlineUsersList) return;
+    onlineUsersList.innerHTML = "";
+    
+    // Seed persistent AI Bot node
+    const aiRow = document.createElement("div");
+    aiRow.className = "online-user-item";
+    aiRow.innerHTML = `<div class="mini-avatar" style="background:#ff9f43">🤖</div> <span>AI Bot</span>`;
+    onlineUsersList.appendChild(aiRow);
+
+    let typingUsers = [];
+    snapshot.forEach(docSnap => {
+      const data = docSnap.data();
+      const timeDiff = Date.now() - (data.lastSeen || 0);
+      const isRecent = timeDiff < 120000;
+      
+      if (data.username !== "AI Bot") {
+        const firstLetter = data.username ? data.username.charAt(0).toUpperCase() : "?";
+        const adminTag = checkAdminStatus(data.username) ? "👑 " : "";
+        const userRow = document.createElement("div");
+        userRow.className = "online-user-item";
+        
+        // Dynamic construction of real-time offline markers ("Last seen at...")
+        let statusMetadataStr = "Offline";
+        if (data.isOnline && isRecent) {
+          statusMetadataStr = "Active Matrix Now";
+        } else if (data.lastSeen) {
+          statusMetadataStr = `Seen ${new Date(data.lastSeen).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
         }
-    ];
 
-    mockMsgs.forEach(msg => appendMessageToDOM(msg));
-    scrollToBottom();
-}
+        userRow.innerHTML = `
+          <div class="mini-avatar" style="background:${data.color || 'var(--accent)'}">${firstLetter}</div>
+          <div style="display:flex; flex-direction:column;">
+            <span style="font-weight:600;">${adminTag}${data.username}</span>
+            <span style="font-size:9px; opacity:0.6;">${statusMetadataStr}</span>
+          </div>
+        `;
+        onlineUsersList.appendChild(userRow);
+
+        if (data.isOnline && isRecent && data.isTyping && data.username !== currentUsername) {
+          typingUsers.push(data.username);
+        }
+      }
+    });
+
+    if (typingUsers.length > 0) {
+      typingIndicator.innerHTML = `✍️ ${typingUsers.join(", ")} is composing...`;
+      typingIndicator.classList.remove("hidden");
+    } else {
+      typingIndicator.classList.add("hidden");
+    }
+  });
+
+  // Advanced Multi-turn Intelligent Conversational Assistant Pipeline
+  async function fetchAiReply(userPrompt) {
+    try {
+      updateAiPresence(true);
+      aiContextMemory.push({ role: "user", content: userPrompt });
+      if (aiContextMemory.length > 12) aiContextMemory.shift();
+
+      const payloadMessages = [
+        { role: "system", content: "You are a swift, hyper-optimized conversational engineer assistant built inside GhostChat channel. Keep structural formatting tight, markdown clean, and replies professional." },
+        ...aiContextMemory
+      ];
+
+      const response = await fetch("https://text.pollinations.ai/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: payloadMessages })
+      });
+
+      const replyText = await response.text();
+      const responseClean = replyText ? replyText.trim() : "System cluster response error: empty buffer pipeline.";
+      
+      aiContextMemory.push({ role: "assistant", content: responseClean });
+      
+      await addDoc(messagesCollection, {
+        sender: "AI Bot",
+        senderColor: "#ff9f43",
+        message: responseClean,
+        time: Date.now()
+      });
+    } catch (err) {
+      console.error(err);
+    } finally {
+      updateAiPresence(false);
+    }
+  }
+
+  if (messageArea) {
+    messageArea.addEventListener("input", (e) => {
+      localStorage.setItem("chat_draft", e.target.value);
+      updatePresence(true, true);
+      clearTimeout(typingTimeout);
+      typingTimeout = setTimeout(() => updatePresence(true, false), 2500);
+    });
+    messageArea.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); sendBtn.click(); } });
+  }
+
+  if (sendBtn) {
+    sendBtn.addEventListener("click", async () => {
+      if (!messageArea) return;
+      const text = messageArea.value.trim();
+      if (!text && !selectedImageBase64) return;
+
+      // Check if updating an existing message signature (Message Editing)
+      if (editingMessageId) {
+        await updateDoc(doc(db, "messages", editingMessageId), {
+          message: text,
+          isEdited: true
+        });
+        editingMessageId = null;
+        sendBtn.title = "Broadcast Data Signature Packet";
+      } else {
+        // Compose standard or reply transmission packet signatures
+        let packetPayload = {
+          sender: currentUsername || "Anonymous",
+          senderColor: currentUserColor,
+          message: text,
+          image: selectedImageBase64,
+          time: Date.now()
+        };
+
+        if (replyingToId) {
+          packetPayload.replyingToId = replyingToId;
+          packetPayload.replyingToUser = replyUserLabel.textContent.replace("Replying to ", "");
+          packetPayload.replyingToText = replyTextLabel.textContent;
+        }
+
+        await addDoc(messagesCollection, packetPayload);
+      }
+
+      messageArea.value = "";
+      localStorage.removeItem("chat_draft");
+      selectedImageBase64 = "";
+      clearReplyContext();
+      
+      if (imageInput) imageInput.value = "";
+      if (cameraInput) cameraInput.value = "";
+      if (imagePreviewContainer) imagePreviewContainer.classList.add("hidden");
+      
+      clearTimeout(typingTimeout);
+      updatePresence(true, false);
+
+      if (text.toLowerCase().startsWith("@ai")) {
+        const cleanedPrompt = text.replace(/^@ai\s*/i, "").trim();
+        if (cleanedPrompt) fetchAiReply(cleanedPrompt);
+      }
+    });
+  }
+
+  // Configuration Panels Actions Hookups
+  if (themeBtn) {
+    themeBtn.addEventListener("click", () => {
+      currentThemeIndex = (currentThemeIndex + 1) % themes.length;
+      localStorage.setItem("chat_theme_index", currentThemeIndex);
+      if (chatContainer) chatContainer.style.backgroundColor = themes[currentThemeIndex];
+    });
+  }
+
+  if (incFontBtn) incFontBtn.addEventListener("click", () => { if (currentFontSize < maxFontSize) { currentFontSize += 2; applyChatFontSize(currentFontSize); } });
+  if (decFontBtn) decFontBtn.addEventListener("click", () => { if (currentFontSize > minFontSize) { currentFontSize -= 2; applyChatFontSize(currentFontSize); } });
+  if (clearChatBtn) clearChatBtn.addEventListener("click", () => { if (confirm("Confirm structural buffer clear?")) purgeChatRoomLogs(); });
+
+  // Floating Navigation Action Attachment
+  const scrollBtn = document.createElement("button");
+  scrollBtn.id = "scrollBottomBtn";
+  scrollBtn.type = "button";
+  scrollBtn.textContent = "⬇";
+  document.querySelector(".chat-container")?.appendChild(scrollBtn);
+
+  scrollBtn.addEventListener("click", () => chatHistory?.scrollTo({ top: chatHistory.scrollHeight, behavior: "smooth" }));
+  chatHistory?.addEventListener("scroll", () => {
+    const nearBottom = chatHistory.scrollHeight - chatHistory.scrollTop - chatHistory.clientHeight < 80;
+    scrollBtn.style.display = nearBottom ? "none" : "flex";
+  });
+});
