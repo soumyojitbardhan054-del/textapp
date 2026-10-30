@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#171311">
+  <title>Evermore — Your private reading room</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=Inter:wght@400;500;600&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="rail">
+      <a class="brand" href="#" aria-label="Evermore home"><span class="brand-mark">e.</span><span class="brand-name">EVERMORE</span></a>
+      <div class="rail-rule"></div>
+      <nav class="main-nav" aria-label="Main navigation">
+        <button class="nav-item active" data-view="today"><span class="nav-icon">⌂</span><span>Today</span></button>
+        <button class="nav-item" data-view="journal"><span class="nav-icon">▤</span><span>Journal</span></button>
+        <button class="nav-item" data-view="timeline"><span class="nav-icon">◷</span><span>Timeline</span></button>
+        <button class="nav-item" data-view="memories"><span class="nav-icon">▧</span><span>Memories</span></button>
+        <div class="nav-spacer"></div>
+        <button class="nav-item" data-view="more"><span class="nav-icon">···</span><span>More</span></button>
+      </nav>
+      <div class="rail-footer"><span class="status-dot"></span><span>PRIVATE SPACE</span></div>
+    </aside>
+
+    <main class="manuscript">
+      <header class="topbar">
+        <div class="eyebrow" id="section-label">YOUR PERSONAL ARCHIVE</div>
+        <div class="topbar-right"><span id="today-date"></span><span class="topbar-divider"></span><span class="save-state" id="save-state">ALL CHANGES SAVED</span></div>
+      </header>
+
+      <section class="view active" id="view-today">
+        <div class="welcome-row">
+          <div>
+            <div class="eyebrow brass">A QUIET PLACE TO RETURN TO</div>
+            <h1 id="greeting">Good evening.</h1>
+            <p class="lede">A life is made of little moments. Keep the ones that matter.</p>
+          </div>
+          <div class="date-stamp"><span id="date-day">30</span><span id="date-month">OCTOBER</span></div>
+        </div>
+        <div class="hairline"></div>
+        <div class="today-grid">
+          <div class="today-main">
+            <div class="section-heading"><span class="eyebrow">THE DAILY PAGE</span><span class="muted" id="today-entry-count">NO ENTRIES YET</span></div>
+            <button class="writing-prompt" id="write-today">
+              <span class="prompt-mark">“</span>
+              <span><strong>What is on your mind today?</strong><small>Start with one sentence. The rest can follow.</small></span>
+              <span class="prompt-arrow">↗</span>
+            </button>
+            <div class="section-heading recent-heading"><span class="eyebrow">RECENT PAGES</span><button class="text-button" data-go="journal">VIEW JOURNAL ↗</button></div>
+            <div id="recent-entries" class="recent-list"><div class="empty-note">Your pages will find a home here.</div></div>
+          </div>
+          <aside class="today-side">
+            <div class="side-note">
+              <div class="eyebrow brass">A SMALL REMINDER</div>
+              <p class="quote">“The secret of getting ahead is getting started.”</p>
+              <span class="quote-credit">— MARK TWAIN</span>
+            </div>
+            <div class="side-stat"><span class="eyebrow">PAGES WRITTEN</span><strong id="total-entries">0</strong><small>Every page is a piece of your story.</small></div>
+            <div class="side-stat"><span class="eyebrow">WORDS KEPT</span><strong id="total-words">0</strong><small>Your thoughts, in your own words.</small></div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="view" id="view-journal">
+        <div class="page-heading">
+          <div><div class="eyebrow brass">THE MANUSCRIPT</div><h1>My Journal<span class="title-period">.</span></h1><p class="lede">A place for the unedited version of your days.</p></div>
+          <button class="primary-button" id="new-entry">＋ NEW ENTRY</button>
+        </div>
+        <div class="journal-toolbar">
+          <label class="search-box"><span>⌕</span><input id="journal-search" type="search" placeholder="Search your pages…"></label>
+          <span class="muted" id="journal-count">0 PAGES</span>
+        </div>
+        <div class="journal-layout">
+          <div class="entry-list" id="entry-list"><div class="empty-note">No pages yet. Your story starts whenever you do.</div></div>
+          <article class="editor" id="editor">
+            <div class="editor-empty"><span class="large-quote">“</span><h2>Every story begins somewhere.</h2><p>Choose a page, or begin a new one.</p><button class="text-button" id="empty-new">WRITE YOUR FIRST PAGE ↗</button></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="view" id="view-timeline">
+        <div class="page-heading"><div><div class="eyebrow brass">THE YEARS, AS THEY HAPPENED</div><h1>Timeline<span class="title-period">.</span></h1><p class="lede">Your life, one page and one moment at a time.</p></div></div>
+        <div id="timeline-content" class="timeline-content"><div class="empty-note">Your timeline will grow with every journal entry.</div></div>
+      </section>
+
+      <section class="view" id="view-memories">
+        <div class="page-heading"><div><div class="eyebrow brass">THE THINGS WORTH KEEPING</div><h1>Memories<span class="title-period">.</span></h1><p class="lede">Photographs and moments, gathered in one place.</p></div><label class="primary-button upload-button">＋ ADD PHOTOS<input id="photo-upload" type="file" accept="image/*" multiple hidden></label></div>
+        <div id="memory-grid" class="memory-grid"><div class="empty-note">No photographs saved yet. Add a picture to begin your collection.</div></div>
+      </section>
+
+      <section class="view" id="view-more">
+        <div class="page-heading"><div><div class="eyebrow brass">BEYOND THE DAILY PAGE</div><h1>The rest of your story<span class="title-period">.</span></h1><p class="lede">More rooms in your personal archive. We'll build these next.</p></div></div>
+        <div class="more-grid">
+          <div class="more-item"><span>01</span><div><h2>Life Reports</h2><p>Daily, monthly and yearly reflections.</p></div><b>COMING NEXT</b></div>
+          <div class="more-item"><span>02</span><div><h2>Goals</h2><p>Small steps towards the things that matter.</p></div><b>COMING NEXT</b></div>
+          <div class="more-item"><span>03</span><div><h2>Letters to Future</h2><p>Words for a version of you still to come.</p></div><b>COMING NEXT</b></div>
+          <div class="more-item"><span>04</span><div><h2>My Library</h2><p>Poems, ideas, quotes and creative work.</p></div><b>COMING NEXT</b></div>
+          <div class="more-item"><span>05</span><div><h2>Settings &amp; Backups</h2><p>Your preferences and a portable copy of your archive.</p></div><b>COMING NEXT</b></div>
+        </div>
+      </section>
+
+      <footer class="page-footer"><span>EVERMORE · A PRIVATE READING ROOM</span><span>MADE FOR THE MOMENTS THAT REMAIN</span></footer>
+    </main>
+
+    <aside class="marginalia" id="marginalia">
+      <div class="margin-block"><div class="eyebrow">A NOTE TO SELF</div><p class="margin-copy">You do not have to make every day extraordinary. You only have to be present for it.</p></div>
+      <div class="margin-rule"></div>
+      <div class="margin-block"><div class="eyebrow">YOUR ARCHIVE</div><div class="margin-stat"><strong id="margin-pages">0</strong><span>pages</span></div><div class="margin-stat"><strong id="margin-photos">0</strong><span>photographs</span></div></div>
+      <div class="margin-bottom"><span class="tiny-mark">e.</span><span>EST. TODAY</span></div>
+    </aside>
+  </div>
+
+  <div class="mobile-nav">
+    <button class="active" data-view="today"><span>⌂</span>Today</button><button data-view="journal"><span>▤</span>Journal</button><button data-view="timeline"><span>◷</span>Timeline</button><button data-view="memories"><span>▧</span>Memories</button><button data-view="more"><span>···</span>More</button>
+  </div>
+
+  <dialog id="entry-dialog" class="entry-dialog">
+    <form method="dialog" id="entry-form">
+      <div class="dialog-top"><span class="eyebrow brass">A NEW PAGE</span><button class="icon-button" value="cancel" aria-label="Close">×</button></div>
+      <input id="entry-title" class="title-input" maxlength="120" placeholder="Give this page a title…" autocomplete="off">
+      <div class="entry-meta"><input id="entry-date" type="date"><span id="word-count">0 WORDS</span></div>
+      <textarea id="entry-body" class="body-input" placeholder="Dear diary…" spellcheck="true"></textarea>
+      <div class="dialog-bottom"><span class="muted">Saved privately on this device</span><div><button type="button" class="delete-button" id="delete-entry" hidden>DELETE</button><button type="submit" class="primary-button" id="save-entry" value="save">SAVE PAGE ↗</button></div></div>
+    </form>
+  </dialog>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
